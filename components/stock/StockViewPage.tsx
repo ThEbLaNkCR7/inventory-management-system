@@ -87,7 +87,7 @@ export default function StockViewPage() {
             <select
               value={selectedBatch}
               onChange={(e) => setSelectedBatch(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="all">All Batches</option>
               {batches.map((batch) => (
@@ -131,7 +131,7 @@ export default function StockViewPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              ${products.reduce((total, p) => total + p.stockQuantity * p.unitPrice, 0).toLocaleString()}
+              Rs {products.reduce((total, p) => total + p.stockQuantity * p.unitPrice, 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">Total inventory value</p>
           </CardContent>
@@ -196,7 +196,7 @@ export default function StockViewPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>${product.unitPrice.toFixed(2)}</TableCell>
+                        <TableCell>Rs {product.unitPrice.toFixed(2)}</TableCell>
                         <TableCell>
                           {product.batchNumber ? (
                             <Badge variant="outline">{product.batchNumber}</Badge>
@@ -270,7 +270,7 @@ export default function StockViewPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>${product.unitPrice.toFixed(2)}</TableCell>
+                        <TableCell>Rs {product.unitPrice.toFixed(2)}</TableCell>
                         <TableCell>
                           {product.batchNumber ? (
                             <Badge variant="outline">{product.batchNumber}</Badge>

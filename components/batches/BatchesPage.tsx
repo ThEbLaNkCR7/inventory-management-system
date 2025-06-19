@@ -227,7 +227,7 @@ export default function BatchesPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Unit Cost ($)</Label>
+                      <Label>Unit Cost (Rs)</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -334,8 +334,7 @@ export default function BatchesPage() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <DollarSign className="h-4 w-4 mr-1 text-green-600" />
-                  <span className="font-medium text-green-600">${batch.totalValue.toLocaleString()}</span>
+                  <span className="font-medium text-green-600">Rs {batch.totalValue.toLocaleString()}</span>
                 </div>
                 {batch.status === "pending" && (
                   <Button
