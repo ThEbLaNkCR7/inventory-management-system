@@ -27,7 +27,7 @@ app.use(express.json())
 
 // MongoDB Connection
 mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/inventory_management", {
+  .connect(process.env.MONGODB_URI || "mongodb+srv://user:<db_password>@test.oubyqth.mongodb.net/?retryWrites=true&w=majority&appName=test", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
