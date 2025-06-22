@@ -23,16 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Plus, Search, Edit, Trash2, Clock, CheckCircle, AlertTriangle } from "lucide-react"
-import { exportToCSV, exportToExcel } from "@/utils/exportUtils"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Plus, Search, Edit, Trash2, CheckCircle, AlertTriangle, Clock } from "lucide-react"
 
 export default function PurchasesPage() {
   const { user } = useAuth()
@@ -185,196 +176,60 @@ export default function PurchasesPage() {
     }
   }
 
-  const handleExport = (format: "csv" | "excel") => {
-    const exportData = filteredPurchases.map((p) => ({
-      Product: p.productName,
-      Supplier: p.supplier,
-      Quantity: p.quantityPurchased,
-      "Unit Price (Rs)": p.purchasePrice,
-      "Total (Rs)": p.quantityPurchased * p.purchasePrice,
-      Date: p.purchaseDate,
-    }))
-
-    if (format === "csv") {
-      exportToCSV(exportData, "purchases")
-    } else {
-      exportToExcel(exportData, "purchases")
-    }
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
       {/* Success/Info Alert */}
       {showSuccessAlert && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">{alertMessage}</AlertDescription>
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
         </Alert>
       )}
 
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Purchases</h1>
-          <p className="text-gray-600">Manage purchase orders and inventory restocking</p>
+      <div className="relative">
+        <div className="space-y-2">
+          <h1 className="section-title">
+            Purchases
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300">Manage purchase orders and inventory restocking</p>
           {user?.role !== "admin" && (
             <div className="mt-2">
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-700">
                 <Clock className="h-3 w-3 mr-1" />
                 Changes require admin approval
               </Badge>
             </div>
           )}
         </div>
-        <div className="flex space-x-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">Export</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Export Data</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleExport("csv")}>CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport("excel")}>Excel</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="absolute top-6 right-0 flex space-x-2">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={resetForm}>
+              <Button onClick={resetForm} variant="neutral">
                 <Plus className="mr-2 h-4 w-4" />
-                Record Purchase
+                Add Purchase
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center space-x-2">
-                  <Plus className="h-5 w-5" />
-                  <span>Record New Purchase</span>
-                </DialogTitle>
-                <DialogDescription>
-                  {user?.role === "admin"
-                    ? "Add a new purchase order to update inventory"
-                    : "Submit a new purchase for admin approval"}
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="product">Product *</Label>
-                  <Select
-                    value={formData.productId}
-                    onValueChange={(value) => setFormData({ ...formData, productId: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} (SKU: {product.sku})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="supplier">Supplier *</Label>
-                  <Select
-                    value={formData.supplier}
-                    onValueChange={(value) => setFormData({ ...formData, supplier: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select supplier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.company}>
-                          {supplier.company}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">Quantity *</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      min="1"
-                      value={formData.quantityPurchased}
-                      onChange={(e) =>
-                        setFormData({ ...formData, quantityPurchased: Number.parseInt(e.target.value) || 0 })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Unit Price (Rs) *</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.purchasePrice}
-                      onChange={(e) =>
-                        setFormData({ ...formData, purchasePrice: Number.parseFloat(e.target.value) || 0 })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date">Purchase Date *</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.purchaseDate}
-                    onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                    required
-                  />
-                </div>
-                {user?.role !== "admin" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="reason">Reason for Purchase</Label>
-                    <Textarea
-                      id="reason"
-                      value={editReason}
-                      onChange={(e) => setEditReason(e.target.value)}
-                      placeholder="Provide reason for this purchase (optional)..."
-                      rows={3}
-                    />
-                  </div>
-                )}
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">{user?.role === "admin" ? "Record Purchase" : "Submit for Approval"}</Button>
-                </div>
-              </form>
-            </DialogContent>
           </Dialog>
         </div>
       </div>
 
       {/* Search */}
-      <Card>
+      <Card className="dark:bg-gray-800 dark:border-gray-700">
         <CardContent className="pt-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-5 w-5" />
             <Input
               placeholder="Search purchases..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-12 border-2 focus:border-slate-500 transition-colors h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Purchases Table */}
-      <Card>
+      <Card className="dark:bg-gray-800 dark:border-gray-700">
         <CardHeader>
           <CardTitle>Purchase Orders ({filteredPurchases.length})</CardTitle>
           <CardDescription>Track all purchase orders and inventory restocking</CardDescription>
@@ -408,17 +263,17 @@ export default function PurchasesPage() {
                       <div className="flex space-x-2">
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="neutralOutline"
                           onClick={() => handleEdit(purchase)}
-                          className="hover:bg-blue-50 hover:border-blue-300"
+                          className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="neutralOutline"
                           onClick={() => handleDelete(purchase)}
-                          className="hover:bg-red-50 hover:border-red-300"
+                          className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -545,7 +400,7 @@ export default function PurchasesPage() {
               />
             </div>
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit">{user?.role === "admin" ? "Update Purchase" : "Submit Changes"}</Button>

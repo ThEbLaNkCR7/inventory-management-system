@@ -1,7 +1,7 @@
 "use client"
 
 import { useAuth } from "@/contexts/AuthContext"
-import LoginForm from "@/components/auth/LoginForm"
+import SwitchableLoginForm from "@/components/auth/SwitchableLoginForm"
 import Dashboard from "@/components/Dashboard"
 
 export default function Home() {
@@ -15,5 +15,5 @@ export default function Home() {
     )
   }
 
-  return <div className="min-h-screen bg-gray-50">{user ? <Dashboard /> : <LoginForm />}</div>
+  return <div className="min-h-screen bg-gray-50">{user ? <Dashboard /> : <SwitchableLoginForm />}</div>
 }

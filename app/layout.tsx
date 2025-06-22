@@ -1,10 +1,18 @@
 import type React from "react"
+import { Outfit } from "next/font/google"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { InventoryProvider } from "@/contexts/InventoryContext"
 import { BatchProvider } from "@/contexts/BatchContext"
 import { ApprovalProvider } from "@/contexts/ApprovalContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 import "./globals.css"
+
+const outfit = Outfit({ 
+  subsets: ["latin"],
+  variable: "--font-outfit",
+  display: "swap",
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"]
+})
 
 export default function RootLayout({
   children,
@@ -13,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <body className={`${outfit.variable} font-outfit min-h-screen bg-background text-foreground transition-colors duration-300 antialiased`}>
         <ThemeProvider>
           <AuthProvider>
             <InventoryProvider>

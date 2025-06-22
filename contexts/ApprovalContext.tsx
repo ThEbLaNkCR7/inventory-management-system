@@ -6,7 +6,7 @@ import { useInventory } from "./InventoryContext"
 
 export interface ApprovalChange {
   id: string
-  type: "product" | "sale" | "purchase"
+  type: "product" | "sale" | "purchase" | "client" | "supplier"
   action: "create" | "update" | "delete"
   entityId?: string
   originalData?: any
@@ -43,6 +43,12 @@ export function ApprovalProvider({ children }: { children: React.ReactNode }) {
     addPurchase,
     updatePurchase,
     deletePurchase,
+    addClient,
+    updateClient,
+    deleteClient,
+    addSupplier,
+    updateSupplier,
+    deleteSupplier,
     sales,
     purchases,
   } = useInventory()
@@ -139,6 +145,42 @@ export function ApprovalProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const applyClientChange = (change: ApprovalChange) => {
+    switch (change.action) {
+      case "create":
+        addClient(change.proposedData)
+        break
+      case "update":
+        if (change.entityId) {
+          updateClient(change.entityId, change.proposedData)
+        }
+        break
+      case "delete":
+        if (change.entityId) {
+          deleteClient(change.entityId)
+        }
+        break
+    }
+  }
+
+  const applySupplierChange = (change: ApprovalChange) => {
+    switch (change.action) {
+      case "create":
+        addSupplier(change.proposedData)
+        break
+      case "update":
+        if (change.entityId) {
+          updateSupplier(change.entityId, change.proposedData)
+        }
+        break
+      case "delete":
+        if (change.entityId) {
+          deleteSupplier(change.entityId)
+        }
+        break
+    }
+  }
+
   const approveChange = (changeId: string, notes?: string) => {
     setChanges((prev) =>
       prev.map((change) => {
@@ -162,6 +204,12 @@ export function ApprovalProvider({ children }: { children: React.ReactNode }) {
                 break
               case "purchase":
                 applyPurchaseChange(updatedChange)
+                break
+              case "client":
+                applyClientChange(updatedChange)
+                break
+              case "supplier":
+                applySupplierChange(updatedChange)
                 break
             }
           } catch (error) {

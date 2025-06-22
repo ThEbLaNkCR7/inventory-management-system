@@ -5,6 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
+import { useApproval } from "@/contexts/ApprovalContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,29 +19,39 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Mail, Phone, Building } from "lucide-react"
-import { exportToCSV, exportToExcel } from "@/utils/exportUtils"
+import { Plus, Search, Mail, Phone, Building, Edit, Trash2, Clock, CheckCircle, AlertTriangle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Download } from "lucide-react"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function ClientsPage() {
   const { user } = useAuth()
-  const { clients, addClient } = useInventory()
+  const { clients, addClient, updateClient, deleteClient } = useInventory()
+  const { submitChange } = useApproval()
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingClient, setEditingClient] = useState<any>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deletingClient, setDeletingClient] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     company: "",
+    status: "Active",
+    address: "",
   })
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
+  const [alertMessage, setAlertMessage] = useState("")
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+  const [approvalReason, setApprovalReason] = useState("")
 
   const filteredClients = clients.filter(
     (client) =>
@@ -55,133 +66,363 @@ export default function ClientsPage() {
       email: "",
       phone: "",
       company: "",
+      status: "Active",
+      address: "",
     })
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    addClient(formData)
-    resetForm()
-    setIsAddDialogOpen(false)
+    if (user?.role === "admin") {
+      addClient(formData)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Client added successfully!")
+    } else {
+      setShowApprovalDialog(true)
+    }
   }
 
-  const handleExport = (format: "csv" | "excel") => {
-    const exportData = filteredClients.map((c) => ({
-      Name: c.name,
-      Email: c.email,
-      Phone: c.phone,
-      Company: c.company,
-    }))
+  const submitForApproval = () => {
+    submitChange({
+      type: "client",
+      action: "create",
+      proposedData: formData,
+      requestedBy: user?.email || "",
+      reason: approvalReason,
+    })
+    resetForm()
+    setIsAddDialogOpen(false)
+    setShowApprovalDialog(false)
+    setApprovalReason("")
+    setShowSuccessAlert(true)
+    setAlertMessage("Client request submitted for approval!")
+  }
 
-    if (format === "csv") {
-      exportToCSV(exportData, "clients")
-    } else {
-      exportToExcel(exportData, "clients")
+  const handleEdit = (client: any) => {
+    setEditingClient(client)
+    setFormData({
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      company: client.company,
+      status: client.status,
+      address: client.address,
+    })
+    setIsEditDialogOpen(true)
+  }
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (editingClient) {
+      updateClient(editingClient.id, formData)
+      resetForm()
+      setIsEditDialogOpen(false)
+      setEditingClient(null)
+      setShowSuccessAlert(true)
+      setAlertMessage("Client updated successfully!")
+    }
+  }
+
+  const handleDelete = (client: any) => {
+    setDeletingClient(client)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (deletingClient) {
+      deleteClient(deletingClient.id)
+      setIsDeleteDialogOpen(false)
+      setDeletingClient(null)
+      setShowSuccessAlert(true)
+      setAlertMessage("Client deleted successfully!")
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
-          <p className="text-gray-600">Manage your client database and contacts</p>
+    <div className="space-y-6 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      {/* Success/Info Alert */}
+      {showSuccessAlert && (
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="relative">
+        <div className="space-y-2">
+          <h1 className="section-title">
+            Clients
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300">Manage client relationships and contact information</p>
         </div>
-        <div className="flex space-x-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                Export <Download className="ml-2 h-4 w-4" />
+        <div className="absolute top-6 right-0 flex space-x-3">
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                onClick={resetForm}
+                variant="neutral"
+                className="shadow-lg hover:shadow-xl transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                Add Client
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Export As</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleExport("csv")}>CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport("excel")}>Excel</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {user?.role === "admin" && (
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button onClick={resetForm}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Client
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Add New Client</DialogTitle>
-                  <DialogDescription>Enter client information to add to your database</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="company">Company</Label>
-                    <Input
-                      id="company"
-                      value={formData.company}
-                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">Add Client</Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          )}
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add New Client</DialogTitle>
+                <DialogDescription>
+                  Enter client information to add to your database
+                  {user?.role !== "admin" && (
+                    <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                      <div className="flex items-center text-amber-800 dark:text-amber-200">
+                        <Clock className="h-4 w-4 mr-2" />
+                        <span className="text-sm font-medium">Changes require admin approval</span>
+                      </div>
+                    </div>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company</Label>
+                  <Input
+                    id="company"
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    placeholder="Enter full address"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                      <SelectItem value="Pending">Pending</SelectItem>
+                      <SelectItem value="Suspended">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {user?.role === "admin" ? "Add Client" : "Submit for Approval"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Approval Reason Dialog */}
+          <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Submit for Approval</DialogTitle>
+                <DialogDescription>Please provide a reason for this client request</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reason">Reason for Request</Label>
+                  <Textarea
+                    id="reason"
+                    value={approvalReason}
+                    onChange={(e) => setApprovalReason(e.target.value)}
+                    placeholder="Explain why this client should be added..."
+                    rows={4}
+                    required
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="neutralOutline" onClick={() => setShowApprovalDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={submitForApproval} disabled={!approvalReason.trim()}>
+                    Submit Request
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
+      {/* Edit Client Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Client</DialogTitle>
+            <DialogDescription>Update client information</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Full Name</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-company">Company</Label>
+              <Input
+                id="edit-company"
+                value={formData.company}
+                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-address">Address</Label>
+              <Input
+                id="edit-address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Enter full address"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Update Client</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Client Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <div className="text-center py-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20 mb-6">
+              <svg className="h-8 w-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <DialogTitle className="text-xl font-semibold mb-3">Delete Client</DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-300 mb-6">
+              Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-gray-100">{deletingClient?.name}</span>? This action cannot be undone.
+            </DialogDescription>
+            <div className="flex justify-center space-x-3">
+              <Button 
+                type="button" 
+                variant="neutralOutline" 
+                onClick={() => {
+                  setIsDeleteDialogOpen(false)
+                  setDeletingClient(null)
+                }}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="button" 
+                variant="destructive" 
+                onClick={handleDeleteConfirm}
+                className="px-6"
+              >
+                Delete Client
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Search */}
-      <Card>
+      <Card className="dark:bg-gray-800 dark:border-gray-700">
         <CardContent className="pt-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-5 w-5" />
             <Input
               placeholder="Search clients..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-12 border-2 focus:border-slate-500 transition-colors h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Clients Table */}
-      <Card>
+      <Card className="dark:bg-gray-800 dark:border-gray-700">
         <CardHeader>
           <CardTitle>Clients ({filteredClients.length})</CardTitle>
           <CardDescription>Manage your client contacts and information</CardDescription>
@@ -191,9 +432,15 @@ export default function ClientsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Client</TableHead>
                   <TableHead>Company</TableHead>
+                  <TableHead>Address</TableHead>
                   <TableHead>Contact</TableHead>
+                  <TableHead>Orders</TableHead>
+                  <TableHead>Total Spent</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Order</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -207,6 +454,12 @@ export default function ClientsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
+                      <div className="flex items-center">
+                        <Building className="h-4 w-4 mr-2 text-gray-400" />
+                        {client.address}
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center text-sm">
                           <Mail className="h-4 w-4 mr-2 text-gray-400" />
@@ -216,6 +469,51 @@ export default function ClientsPage() {
                           <Phone className="h-4 w-4 mr-2 text-gray-400" />
                           {client.phone}
                         </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {Math.floor(Math.random() * 50) + 1}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        Rs {(Math.random() * 10000 + 1000).toFixed(2)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        client.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        client.status === 'Inactive' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
+                        client.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {client.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="neutralOutline"
+                          onClick={() => handleEdit(client)}
+                          className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="neutralOutline"
+                          onClick={() => handleDelete(client)}
+                          className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

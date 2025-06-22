@@ -75,7 +75,7 @@ const mockBatches: Batch[] = [
 ]
 
 export function BatchProvider({ children }: { children: React.ReactNode }) {
-  const [batches, setBatches] = useState<Batch[]>(mockBatches)
+  const [batches, setBatches] = useState<Batch[]>([])
 
   const addBatch = (batchData: Omit<Batch, "id" | "createdAt">) => {
     const newBatch: Batch = {

@@ -2,16 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Modern Typography with Outfit Font */
+@layer base {
+  html {
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-variation-settings: normal;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    font-family: var(--font-outfit), 'Outfit', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: -0.01em;
+  }
+  
+  /* Enhanced typography for headings */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-outfit), 'Outfit', system-ui, sans-serif;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+  
+  /* Modern text styles */
+  .text-modern {
+    font-family: var(--font-outfit), 'Outfit', system-ui, sans-serif;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  
+  .text-modern-light {
+    font-family: var(--font-outfit), 'Outfit', system-ui, sans-serif;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+  
+  .text-modern-medium {
+    font-family: var(--font-outfit), 'Outfit', system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  
+  .text-modern-semibold {
+    font-family: var(--font-outfit), 'Outfit', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  
+  .text-modern-bold {
+    font-family: var(--font-outfit), 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+}
+
 /* Prevent flash of unstyled content */
 html {
   color-scheme: light dark;
-}
-
-/* Default to system preference to prevent flash */
-@media (prefers-color-scheme: dark) {
-  html:not(.light) {
-    @apply dark;
-  }
 }
 
 @layer base {
@@ -22,8 +72,8 @@ html {
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 220 14% 96%;
+    --primary-foreground: 222.2 84% 4.9%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
     --muted: 210 40% 96%;
@@ -34,20 +84,24 @@ html {
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 220 14% 96%;
     --radius: 0.75rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --chart-1: 220 14% 96%;
+    --chart-2: 220 14% 96%;
+    --chart-3: 220 14% 96%;
+    --chart-4: 220 14% 96%;
+    --chart-5: 220 14% 96%;
 
     /* Custom variables for modern design */
     --glass-bg: rgba(255, 255, 255, 0.1);
     --glass-border: rgba(255, 255, 255, 0.2);
-    --sidebar-bg: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    --sidebar-bg: #f8fafc;
     --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    
+    /* Section title background colors */
+    --section-title-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --section-title-text: #ffffff;
   }
 
   .dark {
@@ -57,8 +111,8 @@ html {
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
+    --primary: 217.2 32.6% 17.5%;
+    --primary-foreground: 210 40% 98%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
     --muted: 217.2 32.6% 17.5%;
@@ -69,12 +123,23 @@ html {
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 94.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --ring: 217.2 32.6% 17.5%;
+    --chart-1: 217.2 32.6% 17.5%;
+    --chart-2: 217.2 32.6% 17.5%;
+    --chart-3: 217.2 32.6% 17.5%;
+    --chart-4: 217.2 32.6% 17.5%;
+    --chart-5: 217.2 32.6% 17.5%;
+    
+    /* Dark mode custom variables */
+    --glass-bg: rgba(0, 0, 0, 0.2);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --sidebar-bg: #1e293b;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    
+    /* Dark mode section title background colors */
+    --section-title-bg: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    --section-title-text: #ffffff;
   }
 }
 
@@ -85,6 +150,11 @@ html {
   body {
     @apply bg-background text-foreground;
     transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  /* Ensure consistent theme application */
+  html[data-theme="dark"] {
+    @apply dark;
   }
 }
 
@@ -109,6 +179,45 @@ html {
 /* Smooth transitions for theme changes */
 * {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Section title styles with neutral colors */
+.section-title {
+  @apply text-4xl font-bold px-8 py-6 rounded-none shadow-sm mb-6 w-full;
+  background: #f8fafc;
+  color: #1e293b;
+  text-shadow: none;
+  position: relative;
+  overflow: hidden;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin-left: -1.5rem;
+  margin-right: -1.5rem;
+  width: calc(100% + 3rem);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(0, 0, 0, 0.02) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.section-title:hover::before {
+  transform: translateX(100%);
+}
+
+/* Dark mode section title */
+.dark .section-title {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-bottom: 1px solid #334155;
 }
 
 /* Loading state styles */
@@ -199,60 +308,17 @@ html {
   }
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200px 0;
-  }
-  100% {
-    background-position: calc(200px + 100%) 0;
-  }
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-
-@keyframes glow {
-  0%,
-  100% {
-    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
-  }
-}
-
-/* Enhanced Utility Classes */
+/* Essential utility classes */
 .animate-fade-in {
-  animation: fadeIn 0.5s ease-out;
+  animation: fadeIn 0.3s ease-out;
 }
 
 .animate-slide-in {
-  animation: slideIn 0.6s ease-out;
+  animation: slideIn 0.3s ease-out;
 }
 
 .animate-scale-in {
-  animation: scaleIn 0.4s ease-out;
-}
-
-.animate-shimmer {
-  animation: shimmer 2s infinite linear;
-  background: linear-gradient(90deg, transparent, var(--glass-bg), transparent);
-  background-size: 200% 100%;
-}
-
-.animate-pulse-soft {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.animate-glow {
-  animation: glow 2s ease-in-out infinite alternate;
+  animation: scaleIn 0.3s ease-out;
 }
 
 /* Enhanced Glass Morphism */
@@ -539,14 +605,8 @@ html {
 
 /* High Contrast Mode Support */
 @media (prefers-contrast: high) {
-  .modern-card {
-    @apply border-2 border-foreground;
-  }
-
-  .gradient-text {
-    @apply text-foreground;
-    background: none;
-    -webkit-text-fill-color: initial;
+  .card {
+    @apply border-2;
   }
 }
 

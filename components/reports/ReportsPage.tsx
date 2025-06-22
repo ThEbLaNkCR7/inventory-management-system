@@ -5,12 +5,13 @@ import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { BarChart3, TrendingUp, TrendingDown, Package, AlertTriangle } from "lucide-react"
+import { BarChart3, TrendingUp, TrendingDown, Package, AlertTriangle, Calendar, BarChart } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import VisualReports from "./VisualReports"
 import { DollarSign } from "lucide-react"
-import MonthlyYearlyReports from "./MonthlyYearlyReports"
-import { exportMultipleSheetsAllFormats } from "@/utils/exportUtils"
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts"
+import { useState } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString("en-IN", {
@@ -24,6 +25,7 @@ export default function ReportsPage() {
   const { user } = useAuth()
   const { products, purchases, sales, getLowStockProducts, getTotalSales, getTotalPurchases, getProfit } =
     useInventory()
+  const [reportType, setReportType] = useState<'monthly' | 'yearly'>('monthly')
 
   if (user?.role !== "admin") {
     return (
@@ -79,66 +81,241 @@ export default function ReportsPage() {
     .sort((a, b) => b.totalSold - a.totalSold)
     .slice(0, 5)
 
-  const exportAllData = () => {
-    const sheets = [
-      {
-        name: "Products",
-        data: products.map((p) => ({
-          Name: p.name,
-          SKU: p.sku,
-          Category: p.category,
-          Stock: p.stockQuantity,
-          "Price (Rs)": p.unitPrice,
-          Supplier: p.supplier,
-          Batch: p.batchNumber || "N/A",
-          "Last Restocked": p.lastRestocked || "N/A",
-          "Created Date": formatDate(p.createdAt),
-        })),
-      },
-      {
-        name: "Sales",
-        data: sales.map((s) => ({
-          Product: s.productName,
-          Client: s.client,
-          Quantity: s.quantitySold,
-          "Unit Price (Rs)": s.salePrice,
-          "Total (Rs)": s.quantitySold * s.salePrice,
-          Date: formatDate(s.saleDate),
-        })),
-      },
-      {
-        name: "Purchases",
-        data: purchases.map((p) => ({
-          Product: p.productName,
-          Supplier: p.supplier,
-          Quantity: p.quantityPurchased,
-          "Unit Price (Rs)": p.purchasePrice,
-          "Total (Rs)": p.quantityPurchased * p.purchasePrice,
-          Date: formatDate(p.purchaseDate),
-        })),
-      },
-    ]
-
-    exportMultipleSheetsAllFormats(sheets, "complete-inventory-report")
-  }
-
   return (
-    <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 min-h-screen transition-colors duration-300">
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
-          Reports & Analytics
-        </h1>
-        <p className="text-gray-600 dark:text-gray-300 text-lg">Business insights and performance metrics</p>
-        <div className="flex space-x-2">
-          <Button
-            onClick={exportAllData}
-            variant="outline"
-            className="dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-          >
-            Export All Formats (Excel, CSV, XML)
-          </Button>
+    <div className="space-y-8 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      <div className="relative">
+        <div className="space-y-2">
+          <h1 className="section-title">
+            Reports
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 text-lg">Generate comprehensive reports and analytics</p>
+        </div>
+        <div className="absolute top-6 right-0 flex space-x-3">
+          {/* Export functionality removed */}
         </div>
       </div>
+
+      {/* Report Type Toggle */}
+      <Tabs value={reportType} onValueChange={(value) => setReportType(value as 'monthly' | 'yearly')} className="w-full">
+        <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+          <TabsTrigger value="monthly" className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4" />
+            <span>Monthly Report</span>
+          </TabsTrigger>
+          <TabsTrigger value="yearly" className="flex items-center space-x-2">
+            <BarChart className="h-4 w-4" />
+            <span>Yearly Report</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="monthly" className="space-y-6">
+          {/* Monthly Report Content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Monthly Sales</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">Rs {monthlySales.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Total sales this month</p>
+              </CardContent>
+            </Card>
+
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Monthly Purchases</CardTitle>
+                <TrendingDown className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">Rs {monthlyPurchases.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Total purchases this month</p>
+              </CardContent>
+            </Card>
+
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Monthly Profit</CardTitle>
+                <DollarSign className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">Rs {monthlyProfit.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Net profit this month</p>
+              </CardContent>
+            </Card>
+
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Transactions</CardTitle>
+                <Package className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">{sales.length + purchases.length}</div>
+                <p className="text-xs text-muted-foreground">Total transactions</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Monthly Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle>Sales vs Purchases Trend</CardTitle>
+                <CardDescription>Monthly comparison of sales and purchases</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={[
+                    { month: "Jan", sales: monthlySales, purchases: monthlyPurchases },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => `Rs ${value.toLocaleString()}`} />
+                    <Line type="monotone" dataKey="sales" stroke="#10B981" strokeWidth={2} name="Sales" />
+                    <Line type="monotone" dataKey="purchases" stroke="#3B82F6" strokeWidth={2} name="Purchases" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle>Monthly Performance</CardTitle>
+                <CardDescription>Sales and purchases by month</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RechartsBarChart data={[
+                    { month: "Jan", sales: monthlySales, purchases: monthlyPurchases },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => `Rs ${value.toLocaleString()}`} />
+                    <Bar dataKey="sales" fill="#10B981" name="Sales" />
+                    <Bar dataKey="purchases" fill="#3B82F6" name="Purchases" />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="yearly" className="space-y-6">
+          {/* Yearly Report Content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Yearly Sales</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">Rs {totalSales.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Total sales this year</p>
+              </CardContent>
+            </Card>
+
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Yearly Purchases</CardTitle>
+                <TrendingDown className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">Rs {totalPurchases.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Total purchases this year</p>
+              </CardContent>
+            </Card>
+
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Yearly Profit</CardTitle>
+                <DollarSign className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">Rs {profit.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Net profit this year</p>
+              </CardContent>
+            </Card>
+
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+                <Package className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">{sales.length + purchases.length}</div>
+                <p className="text-xs text-muted-foreground">All transactions this year</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Yearly Summary Table */}
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
+            <CardHeader>
+              <CardTitle>Yearly Summary</CardTitle>
+              <CardDescription>Monthly breakdown for the current year</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Month</TableHead>
+                      <TableHead>Sales</TableHead>
+                      <TableHead>Purchases</TableHead>
+                      <TableHead>Profit</TableHead>
+                      <TableHead>Transactions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      // Generate monthly data for the current year
+                      const currentYear = new Date().getFullYear()
+                      const monthlyData = []
+                      
+                      for (let month = 0; month < 12; month++) {
+                        const monthName = new Date(currentYear, month).toLocaleDateString('en-US', { month: 'long' })
+                        const monthSales = sales.filter(sale => {
+                          const saleDate = new Date(sale.saleDate)
+                          return saleDate.getFullYear() === currentYear && saleDate.getMonth() === month
+                        })
+                        const monthPurchases = purchases.filter(purchase => {
+                          const purchaseDate = new Date(purchase.purchaseDate)
+                          return purchaseDate.getFullYear() === currentYear && purchaseDate.getMonth() === month
+                        })
+                        
+                        const totalSales = monthSales.reduce((sum, sale) => sum + (sale.quantitySold * sale.salePrice), 0)
+                        const totalPurchases = monthPurchases.reduce((sum, purchase) => sum + (purchase.quantityPurchased * purchase.purchasePrice), 0)
+                        const profit = totalSales - totalPurchases
+                        const transactions = monthSales.length + monthPurchases.length
+                        
+                        monthlyData.push({
+                          month: monthName,
+                          sales: totalSales,
+                          purchases: totalPurchases,
+                          profit: profit,
+                          transactions: transactions
+                        })
+                      }
+                      
+                      return monthlyData.map((data, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{data.month}</TableCell>
+                          <TableCell>Rs {data.sales.toLocaleString()}</TableCell>
+                          <TableCell>Rs {data.purchases.toLocaleString()}</TableCell>
+                          <TableCell>Rs {data.profit.toLocaleString()}</TableCell>
+                          <TableCell>{data.transactions}</TableCell>
+                        </TableRow>
+                      ))
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -345,8 +522,6 @@ export default function ReportsPage() {
           </div>
         </CardContent>
       </Card>
-      <MonthlyYearlyReports />
-      <VisualReports />
     </div>
   )
 }

@@ -1,24 +1,18 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter, useSearchParams } from "next/navigation"
-import Sidebar from "@/components/layout/Sidebar"
+import EmployeeSidebar from "@/components/employee/EmployeeSidebar"
 import Header from "@/components/layout/Header"
-import DashboardHome from "@/components/dashboard/DashboardHome"
-import ProductsPage from "@/components/products/ProductsPage"
-import PurchasesPage from "@/components/purchases/PurchasesPage"
-import SalesPage from "@/components/sales/SalesPage"
-import ClientsPage from "@/components/clients/ClientsPage"
-import SuppliersPage from "@/components/suppliers/SuppliersPage"
-import ReportsPage from "@/components/reports/ReportsPage"
-import BatchesPage from "@/components/batches/BatchesPage"
-import StockViewPage from "@/components/stock/StockViewPage"
-import ApprovalsPage from "@/components/approvals/ApprovalsPage"
-import VisualReports from "@/components/reports/VisualReports"
+import EmployeeDashboard from "@/components/employee/EmployeeDashboard"
+import EmployeesPage from "@/components/employee/EmployeesPage"
+import MonthlySalaryPage from "@/components/employee/MonthlySalaryPage"
+import WagesPage from "@/components/employee/WagesPage"
+import ReportPage from "@/components/employee/ReportPage"
 import { ChevronRight } from "lucide-react"
 
-export default function Dashboard() {
+function EmployeeDashboardContent() {
   const { user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -28,7 +22,7 @@ export default function Dashboard() {
   // Initialize sidebar state from localStorage
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('sidebarOpen')
+      const stored = localStorage.getItem('employeeSidebarOpen')
       return stored ? JSON.parse(stored) : true // Default to open
     }
     return true
@@ -38,7 +32,7 @@ export default function Dashboard() {
 
   // Save sidebar state to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen))
+    localStorage.setItem('employeeSidebarOpen', JSON.stringify(sidebarOpen))
   }, [sidebarOpen])
 
   // Update URL when activeTab changes
@@ -61,35 +55,23 @@ export default function Dashboard() {
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
-        return <DashboardHome />
-      case "products":
-        return <ProductsPage />
-      case "stock-view":
-        return <StockViewPage />
-      case "batches":
-        return <BatchesPage />
-      case "purchases":
-        return <PurchasesPage />
-      case "sales":
-        return <SalesPage />
-      case "clients":
-        return <ClientsPage />
-      case "suppliers":
-        return <SuppliersPage />
-      case "approvals":
-        return <ApprovalsPage />
-      case "reports":
-        return <ReportsPage />
-      case "visual-reports":
-        return <VisualReports />
+        return <EmployeeDashboard />
+      case "employee-details":
+        return <EmployeesPage />
+      case "monthly-salary":
+        return <MonthlySalaryPage />
+      case "wages":
+        return <WagesPage />
+      case "report":
+        return <ReportPage />
       default:
-        return <DashboardHome />
+        return <EmployeeDashboard />
     }
   }
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      <EmployeeSidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       <div className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
         {/* Sidebar open button (desktop) */}
         {!sidebarOpen && (
@@ -112,3 +94,11 @@ export default function Dashboard() {
     </div>
   )
 }
+
+export default function EmployeeDashboardLayout() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}>
+      <EmployeeDashboardContent />
+    </Suspense>
+  )
+} 

@@ -45,6 +45,8 @@ export interface Client {
   email: string
   phone: string
   company: string
+  status: string
+  address: string
 }
 
 export interface Supplier {
@@ -53,6 +55,11 @@ export interface Supplier {
   email: string
   phone: string
   company: string
+  status: string
+  address: string
+  orders: number
+  totalSpent: number
+  lastOrder: string
 }
 
 interface InventoryContextType {
@@ -77,7 +84,11 @@ interface InventoryContextType {
   updateSale: (id: string, sale: Partial<Sale>) => void
   deleteSale: (id: string) => void
   addClient: (client: Omit<Client, "id">) => void
+  updateClient: (id: string, client: Partial<Client>) => void
+  deleteClient: (id: string) => void
   addSupplier: (supplier: Omit<Supplier, "id">) => void
+  updateSupplier: (id: string, supplier: Partial<Supplier>) => void
+  deleteSupplier: (id: string) => void
   getLowStockProducts: () => Product[]
   getTotalSales: () => number
   getTotalPurchases: () => number
@@ -106,103 +117,12 @@ interface InventoryContextType {
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined)
 
-// Mock data
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    name: "Laptop Dell XPS 13",
-    sku: "DELL-XPS-001",
-    description: "High-performance ultrabook",
-    category: "Electronics",
-    stockQuantity: 15,
-    unitPrice: 1200,
-    supplier: "Dell Inc.",
-    createdAt: "2024-01-15",
-    batchId: "1",
-    batchNumber: "BATCH-2024-001",
-    stockType: "new",
-    lastRestocked: "2024-01-15",
-  },
-  {
-    id: "2",
-    name: "iPhone 15 Pro",
-    sku: "APPLE-IP15-001",
-    description: "Latest iPhone model",
-    category: "Electronics",
-    stockQuantity: 8,
-    unitPrice: 999,
-    supplier: "Apple Inc.",
-    createdAt: "2024-01-20",
-    batchId: "2",
-    batchNumber: "BATCH-2024-002",
-    stockType: "new",
-    lastRestocked: "2024-01-20",
-  },
-  {
-    id: "3",
-    name: "Office Chair",
-    sku: "FURN-CHAIR-001",
-    description: "Ergonomic office chair",
-    category: "Furniture",
-    stockQuantity: 3,
-    unitPrice: 250,
-    supplier: "Office Furniture Co.",
-    createdAt: "2024-01-25",
-    stockType: "old",
-    lastRestocked: "2023-12-01",
-  },
-]
-
-const mockPurchases: Purchase[] = [
-  {
-    id: "1",
-    productId: "1",
-    productName: "Laptop Dell XPS 13",
-    supplier: "Dell Inc.",
-    quantityPurchased: 20,
-    purchasePrice: 1000,
-    purchaseDate: "2024-01-15",
-  },
-]
-
-const mockSales: Sale[] = [
-  {
-    id: "1",
-    productId: "1",
-    productName: "Laptop Dell XPS 13",
-    client: "Tech Corp",
-    quantitySold: 5,
-    salePrice: 1200,
-    saleDate: "2024-01-20",
-  },
-]
-
-const mockClients: Client[] = [
-  {
-    id: "1",
-    name: "John Smith",
-    email: "john@techcorp.com",
-    phone: "+1-555-0123",
-    company: "Tech Corp",
-  },
-]
-
-const mockSuppliers: Supplier[] = [
-  {
-    id: "1",
-    name: "Dell Sales Rep",
-    email: "sales@dell.com",
-    phone: "+1-555-0456",
-    company: "Dell Inc.",
-  },
-]
-
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(mockProducts)
-  const [purchases, setPurchases] = useState<Purchase[]>(mockPurchases)
-  const [sales, setSales] = useState<Sale[]>(mockSales)
-  const [clients, setClients] = useState<Client[]>(mockClients)
-  const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers)
+  const [products, setProducts] = useState<Product[]>([])
+  const [purchases, setPurchases] = useState<Purchase[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
 
   const addProduct = (product: Omit<Product, "id" | "createdAt">) => {
     const newProduct: Product = {
@@ -315,12 +235,28 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     setClients((prev) => [...prev, newClient])
   }
 
+  const updateClient = (id: string, updatedClient: Partial<Client>) => {
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...updatedClient } : c)))
+  }
+
+  const deleteClient = (id: string) => {
+    setClients((prev) => prev.filter((c) => c.id !== id))
+  }
+
   const addSupplier = (supplier: Omit<Supplier, "id">) => {
     const newSupplier: Supplier = {
       ...supplier,
       id: Date.now().toString(),
     }
     setSuppliers((prev) => [...prev, newSupplier])
+  }
+
+  const updateSupplier = (id: string, updatedSupplier: Partial<Supplier>) => {
+    setSuppliers((prev) => prev.map((s) => (s.id === id ? { ...s, ...updatedSupplier } : s)))
+  }
+
+  const deleteSupplier = (id: string) => {
+    setSuppliers((prev) => prev.filter((s) => s.id !== id))
   }
 
   const getLowStockProducts = () => {
@@ -511,7 +447,11 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         updateSale,
         deleteSale,
         addClient,
+        updateClient,
+        deleteClient,
         addSupplier,
+        updateSupplier,
+        deleteSupplier,
         getLowStockProducts,
         getTotalSales,
         getTotalPurchases,

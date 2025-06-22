@@ -24,8 +24,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Edit, Trash2, AlertTriangle, Clock, Download, FileSpreadsheet, FileText } from "lucide-react"
-import { exportToCSV, exportToExcel } from "@/utils/exportUtils"
+import { Plus, Search, Edit, Trash2, AlertTriangle, Clock } from "lucide-react"
 
 export default function ProductsPage() {
   const { user } = useAuth()
@@ -154,68 +153,24 @@ export default function ProductsPage() {
     }
   }
 
-  const handleExport = (format: "csv" | "excel") => {
-    const exportData = filteredProducts.map((p) => ({
-      Name: p.name,
-      SKU: p.sku,
-      Category: p.category,
-      Stock: p.stockQuantity,
-      "Price (Rs)": p.unitPrice,
-      Supplier: p.supplier,
-      "Last Updated": new Date(p.createdAt).toLocaleDateString(),
-    }))
-
-    if (format === "csv") {
-      exportToCSV(exportData, "products")
-    } else {
-      exportToExcel(exportData, "products")
-    }
-  }
-
   return (
-    <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 min-h-screen transition-colors duration-300">
-      <div className="flex justify-between items-center">
+    <div className="space-y-8 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      <div className="relative">
         <div className="space-y-2">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+          <h1 className="section-title">
             Products
           </h1>
           <p className="text-gray-600 dark:text-gray-300 text-lg">Manage your product inventory with ease</p>
         </div>
-        <div className="flex space-x-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="shadow-md hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="dark:bg-gray-800 dark:border-gray-700">
-              <DropdownMenuItem
-                onClick={() => handleExport("csv")}
-                className="dark:text-gray-200 dark:hover:bg-gray-700"
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Export as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleExport("excel")}
-                className="dark:text-gray-200 dark:hover:bg-gray-700"
-              >
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Export as Excel
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="absolute top-6 right-0 flex space-x-3">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 onClick={resetForm}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all"
+                variant="neutral"
+                className="shadow-lg hover:shadow-xl transition-all"
               >
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="h-4 w-4" />
                 Add Product
               </Button>
             </DialogTrigger>
@@ -246,7 +201,7 @@ export default function ProductsPage() {
                       id="name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="border-2 focus:border-blue-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
                     />
                   </div>
@@ -258,7 +213,7 @@ export default function ProductsPage() {
                       id="sku"
                       value={formData.sku}
                       onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                      className="border-2 focus:border-blue-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
                     />
                   </div>
@@ -272,7 +227,7 @@ export default function ProductsPage() {
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="border-2 focus:border-blue-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                    className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                     rows={3}
                   />
                 </div>
@@ -286,7 +241,7 @@ export default function ProductsPage() {
                       id="category"
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="border-2 focus:border-blue-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
                     />
                   </div>
@@ -298,7 +253,7 @@ export default function ProductsPage() {
                       id="supplier"
                       value={formData.supplier}
                       onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                      className="border-2 focus:border-blue-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
                     />
                   </div>
@@ -312,7 +267,7 @@ export default function ProductsPage() {
                     value={formData.stockType}
                     onValueChange={(value: "new" | "old") => setFormData({ ...formData, stockType: value })}
                   >
-                    <SelectTrigger className="border-2 focus:border-blue-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                    <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                       <SelectValue placeholder="Select stock type" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
@@ -334,7 +289,7 @@ export default function ProductsPage() {
                       onChange={(e) =>
                         setFormData({ ...formData, stockQuantity: Number.parseInt(e.target.value) || 0 })
                       }
-                      className="border-2 focus:border-blue-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
                     />
                   </div>
@@ -348,7 +303,7 @@ export default function ProductsPage() {
                       step="0.01"
                       value={formData.unitPrice}
                       onChange={(e) => setFormData({ ...formData, unitPrice: Number.parseFloat(e.target.value) || 0 })}
-                      className="border-2 focus:border-blue-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
                     />
                   </div>
@@ -357,15 +312,14 @@ export default function ProductsPage() {
                 <div className="flex justify-end space-x-3 pt-4 border-t dark:border-gray-700">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="neutralOutline"
                     onClick={() => setIsAddDialogOpen(false)}
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                    variant="neutral"
                   >
                     {user?.role === "admin" ? (editingProduct ? "Update" : "Add") : "Submit for Approval"}
                   </Button>
@@ -397,20 +351,19 @@ export default function ProductsPage() {
                 value={approvalReason}
                 onChange={(e) => setApprovalReason(e.target.value)}
                 placeholder="Explain why this change is needed..."
-                className="border-2 focus:border-blue-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                 rows={4}
                 required
               />
             </div>
             <div className="flex justify-end space-x-3">
               <Button
-                variant="outline"
+                variant="neutralOutline"
                 onClick={() => setShowApprovalDialog(false)}
-                className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
               >
                 Cancel
               </Button>
-              <Button onClick={submitForApproval} disabled={!approvalReason.trim()}>
+              <Button variant="neutral" onClick={submitForApproval} disabled={!approvalReason.trim()}>
                 Submit Request
               </Button>
             </div>
@@ -419,7 +372,7 @@ export default function ProductsPage() {
       </Dialog>
 
       {/* Filters */}
-      <Card className="shadow-lg border-0 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm dark:border-gray-700">
+      <Card className="shadow-lg border-0 bg-white/70 dark:bg-gray-800 dark:border-gray-700 backdrop-blur-sm">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -429,12 +382,12 @@ export default function ProductsPage() {
                   placeholder="Search products..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-12 border-2 focus:border-blue-500 transition-colors h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  className="pl-12 border-2 focus:border-slate-500 transition-colors h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                 />
               </div>
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full sm:w-48 border-2 focus:border-blue-500 h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+              <SelectTrigger className="w-full sm:w-48 border-2 focus:border-slate-500 h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                 <SelectValue placeholder="Filter by category" />
               </SelectTrigger>
               <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
@@ -451,10 +404,10 @@ export default function ProductsPage() {
       </Card>
 
       {/* Products Table */}
-      <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm dark:border-gray-700">
-        <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
-          <CardTitle className="text-2xl font-bold">Products ({filteredProducts.length})</CardTitle>
-          <CardDescription className="text-blue-100">Manage your product inventory and stock levels</CardDescription>
+      <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800 dark:border-gray-700 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">Products ({filteredProducts.length})</CardTitle>
+          <CardDescription className="text-gray-600 dark:text-gray-400">Manage your product inventory and stock levels</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -475,7 +428,7 @@ export default function ProductsPage() {
                 {filteredProducts.map((product) => (
                   <TableRow
                     key={product.id}
-                    className="hover:bg-blue-50/50 dark:hover:bg-gray-700/50 transition-colors"
+                    className="hover:bg-slate-50/50 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     <TableCell>
                       <div className="space-y-1">
@@ -483,28 +436,28 @@ export default function ProductsPage() {
                         <p className="text-sm text-gray-600 dark:text-gray-400">{product.description}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-sm bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 dark:text-gray-300">
+                    <TableCell className="font-mono text-sm dark:text-gray-300">
                       {product.sku}
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant="secondary"
-                        className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 font-medium"
+                        className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium"
                       >
                         {product.category}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        {product.stockQuantity <= 5 && <AlertTriangle className="h-4 w-4 text-orange-500" />}
+                        {product.stockQuantity <= 5 && <AlertTriangle className="h-4 w-4 text-amber-500" />}
                         <span
-                          className={`font-semibold ${product.stockQuantity <= 5 ? "text-orange-600 dark:text-orange-400" : "text-green-600 dark:text-green-400"}`}
+                          className={`font-semibold ${product.stockQuantity <= 5 ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-slate-400"}`}
                         >
                           {product.stockQuantity}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-semibold text-green-600 dark:text-green-400">
+                    <TableCell className="font-semibold text-slate-600 dark:text-slate-400">
                       Rs {product.unitPrice.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-gray-700 dark:text-gray-300">{product.supplier}</TableCell>
@@ -515,17 +468,17 @@ export default function ProductsPage() {
                       <div className="flex space-x-2">
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="neutralOutline"
                           onClick={() => handleEdit(product)}
-                          className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                          className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="neutralOutline"
                           onClick={() => handleDelete(product)}
-                          className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors dark:bg-gray-700 dark:border-gray-600"
+                          className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

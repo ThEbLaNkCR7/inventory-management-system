@@ -4,7 +4,7 @@ import { useInventory } from "@/contexts/InventoryContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Download, TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart } from "lucide-react"
+import { Download, TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart, Info } from "lucide-react"
 import {
   BarChart,
   Bar,
@@ -16,42 +16,26 @@ import {
   PieChart,
   Pie,
   Cell,
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   Legend,
 } from "recharts"
 
-const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4"]
-const GRADIENT_COLORS = [
-  { id: "salesGradient", color1: "#3B82F6", color2: "#1D4ED8" },
-  { id: "purchasesGradient", color1: "#10B981", color2: "#059669" },
-  { id: "profitGradient", color1: "#F59E0B", color2: "#D97706" },
-]
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-semibold text-gray-800">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {entry.name}: Rs {entry.value.toLocaleString()}
-          </p>
-        ))}
-      </div>
-    )
-  }
-  return null
+// Simple, neutral colors for better readability
+const CHART_COLORS = {
+  sales: "#3B82F6",      // Blue
+  purchases: "#10B981",  // Green
+  profit: "#8B5CF6",     // Purple
+  neutral: "#6B7280",    // Gray
 }
 
 const StatCard = ({ title, value, icon: Icon, trend, trendValue, color }: any) => (
-  <Card className="relative overflow-hidden">
-    <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-5`} />
+  <Card className="border border-gray-200 dark:border-gray-700">
     <CardContent className="p-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">Rs {value.toLocaleString()}</p>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">Rs {value.toLocaleString()}</p>
           {trend && (
             <div className="flex items-center mt-2">
               {trend === "up" ? (
@@ -65,13 +49,32 @@ const StatCard = ({ title, value, icon: Icon, trend, trendValue, color }: any) =
             </div>
           )}
         </div>
-        <div className={`p-3 rounded-full bg-gradient-to-br ${color}`}>
+        <div className={`p-3 rounded-full ${color}`}>
           <Icon className="h-6 w-6 text-white" />
         </div>
       </div>
     </CardContent>
   </Card>
 )
+
+const SimpleTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg">
+        <p className="font-semibold text-gray-800 dark:text-gray-200 mb-2">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2 mb-1">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              {entry.name}: <span className="font-semibold">Rs {entry.value.toLocaleString()}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+  return null
+}
 
 export default function VisualReports() {
   const { products, sales, purchases, getTotalSales, getTotalPurchases, getProfit } = useInventory()
@@ -81,38 +84,8 @@ export default function VisualReports() {
   const totalProfit = getProfit()
   const totalProducts = products.length
 
-  // Enhanced sales vs purchases data
-  const salesVsPurchasesData = [
-    {
-      name: "Revenue",
-      Sales: totalSales,
-      Purchases: totalPurchases,
-      Profit: totalProfit,
-    },
-  ]
-
-  // Stock distribution by category with enhanced data
-  const categoryData = products.reduce(
-    (acc, product) => {
-      const category = product.category
-      if (!acc[category]) {
-        acc[category] = { name: category, value: 0, count: 0, percentage: 0 }
-      }
-      acc[category].value += product.stockQuantity * product.unitPrice
-      acc[category].count += product.stockQuantity
-      return acc
-    },
-    {} as Record<string, { name: string; value: number; count: number; percentage: number }>,
-  )
-
-  const stockDistributionData = Object.values(categoryData).map((item, index) => ({
-    ...item,
-    fill: COLORS[index % COLORS.length],
-    percentage: ((item.value / Object.values(categoryData).reduce((sum, cat) => sum + cat.value, 0)) * 100).toFixed(1),
-  }))
-
-  // Enhanced monthly trends with more realistic data
-  const monthlyTrendsData = [
+  // Simple monthly data for trends
+  const monthlyData = [
     { month: "Jan", sales: 45000, purchases: 32000, profit: 13000 },
     { month: "Feb", sales: 52000, purchases: 38000, profit: 14000 },
     { month: "Mar", sales: 48000, purchases: 35000, profit: 13000 },
@@ -121,45 +94,53 @@ export default function VisualReports() {
     { month: "Jun", sales: 67000, purchases: 45000, profit: 22000 },
   ]
 
-  // Top products with enhanced visualization
-  const topProductsData = products
-    .map((product) => ({
-      name: product.name.length > 20 ? product.name.substring(0, 20) + "..." : product.name,
-      value: product.stockQuantity * product.unitPrice,
-      stock: product.stockQuantity,
-      category: product.category,
-      fill: COLORS[Math.floor(Math.random() * COLORS.length)],
+  // Simple category breakdown
+  const categoryBreakdown = products.reduce((acc, product) => {
+    const category = product.category || "Uncategorized"
+    if (!acc[category]) {
+      acc[category] = { name: category, value: 0, count: 0 }
+    }
+    acc[category].value += product.stockQuantity * product.unitPrice
+    acc[category].count += product.stockQuantity
+    return acc
+  }, {} as Record<string, { name: string; value: number; count: number }>)
+
+  const categoryData = Object.values(categoryBreakdown)
+    .map((item, index) => ({
+      ...item,
+      fill: Object.values(CHART_COLORS)[index % Object.values(CHART_COLORS).length],
+      percentage: ((item.value / Object.values(categoryBreakdown).reduce((sum, cat) => sum + cat.value, 0)) * 100).toFixed(1),
     }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 6)
 
-  // Performance metrics for radial chart
-  const performanceData = [
-    { name: "Sales Target", value: 75, fill: "#3B82F6" },
-    { name: "Inventory Turnover", value: 60, fill: "#10B981" },
-    { name: "Profit Margin", value: 45, fill: "#F59E0B" },
-    { name: "Customer Satisfaction", value: 85, fill: "#EF4444" },
-  ]
+  // Top 5 products by value
+  const topProducts = products
+    .map((product) => ({
+      name: product.name.length > 15 ? product.name.substring(0, 15) + "..." : product.name,
+      value: product.stockQuantity * product.unitPrice,
+      stock: product.stockQuantity,
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5)
 
   return (
-    <div className="space-y-8 p-6 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen">
-      {/* Header */}
+    <div className="space-y-6 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
       <div className="space-y-2">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-          Visual Analytics Dashboard
+        <h1 className="section-title">
+          Visual Reports
         </h1>
-        <p className="text-gray-600 text-lg">Real-time insights and performance metrics</p>
+        <p className="text-gray-600 dark:text-gray-300 text-lg">Easy-to-understand charts and insights</p>
       </div>
 
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Key Numbers */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Sales"
           value={totalSales}
           icon={DollarSign}
           trend="up"
           trendValue="12.5"
-          color="from-blue-500 to-blue-600"
+          color="bg-blue-500"
         />
         <StatCard
           title="Total Purchases"
@@ -167,7 +148,7 @@ export default function VisualReports() {
           icon={ShoppingCart}
           trend="up"
           trendValue="8.2"
-          color="from-green-500 to-green-600"
+          color="bg-green-500"
         />
         <StatCard
           title="Net Profit"
@@ -175,7 +156,7 @@ export default function VisualReports() {
           icon={TrendingUp}
           trend="up"
           trendValue="15.3"
-          color="from-purple-500 to-purple-600"
+          color="bg-purple-500"
         />
         <StatCard
           title="Total Products"
@@ -183,251 +164,207 @@ export default function VisualReports() {
           icon={Package}
           trend="up"
           trendValue="5.1"
-          color="from-orange-500 to-orange-600"
+          color="bg-gray-500"
         />
       </div>
 
-      {/* Main Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Sales vs Purchases - Enhanced Bar Chart */}
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl font-semibold text-gray-800">Revenue Overview</CardTitle>
-                <CardDescription className="text-gray-600">Sales, purchases, and profit comparison</CardDescription>
-              </div>
-              <Button size="sm" variant="outline" className="gap-2">
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={salesVsPurchasesData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <defs>
-                  {GRADIENT_COLORS.map((gradient) => (
-                    <linearGradient key={gradient.id} id={gradient.id} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={gradient.color1} stopOpacity={0.8} />
-                      <stop offset="95%" stopColor={gradient.color2} stopOpacity={0.6} />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(value) => `Rs ${(value / 1000).toFixed(0)}K`} tick={{ fontSize: 12 }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="Sales" fill="url(#salesGradient)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Purchases" fill="url(#purchasesGradient)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Profit" fill="url(#profitGradient)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Stock Distribution - Enhanced Pie Chart */}
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl font-semibold text-gray-800">Inventory Distribution</CardTitle>
-                <CardDescription className="text-gray-600">Stock value by category</CardDescription>
-              </div>
-              <div className="flex gap-2">
-                {stockDistributionData.slice(0, 3).map((entry, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs">
-                    {entry.name}: {entry.percentage}%
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <PieChart>
-                <Pie
-                  data={stockDistributionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={120}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {stockDistributionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: any) => [`Rs ${value.toLocaleString()}`, "Value"]}
-                  labelFormatter={(label) => `Category: ${label}`}
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  formatter={(value, entry: any) => <span style={{ color: entry.color }}>{value}</span>}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Monthly Trends - Enhanced Area Chart */}
-      <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-        <CardHeader className="pb-4">
+      {/* Monthly Trends - Simple Line Chart */}
+      <Card className="border border-gray-200 dark:border-gray-700">
+        <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-xl font-semibold text-gray-800">Monthly Performance Trends</CardTitle>
-              <CardDescription className="text-gray-600">6-month sales, purchases, and profit analysis</CardDescription>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <span className="text-sm text-gray-600">Sales</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="text-sm text-gray-600">Purchases</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                <span className="text-sm text-gray-600">Profit</span>
-              </div>
+              <CardTitle className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                Monthly Trends
+              </CardTitle>
+              <CardDescription className="text-gray-600 dark:text-gray-400">
+                How sales, purchases, and profit changed over 6 months
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <AreaChart data={monthlyTrendsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <defs>
-                <linearGradient id="salesArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1} />
-                </linearGradient>
-                <linearGradient id="purchasesArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0.1} />
-                </linearGradient>
-                <linearGradient id="profitArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={(value) => `Rs ${(value / 1000).toFixed(0)}K`} tick={{ fontSize: 12 }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="sales"
-                stackId="1"
-                stroke="#3B82F6"
-                fill="url(#salesArea)"
-                strokeWidth={2}
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis 
+                dataKey="month" 
+                tick={{ fontSize: 12, fill: '#6b7280' }}
+                axisLine={{ stroke: '#e5e7eb' }}
               />
-              <Area
-                type="monotone"
-                dataKey="purchases"
-                stackId="2"
-                stroke="#10B981"
-                fill="url(#purchasesArea)"
-                strokeWidth={2}
+              <YAxis 
+                tickFormatter={(value) => `Rs ${(value / 1000).toFixed(0)}K`} 
+                tick={{ fontSize: 12, fill: '#6b7280' }}
+                axisLine={{ stroke: '#e5e7eb' }}
               />
-              <Area
-                type="monotone"
-                dataKey="profit"
-                stackId="3"
-                stroke="#8B5CF6"
-                fill="url(#profitArea)"
-                strokeWidth={2}
+              <Tooltip content={<SimpleTooltip />} />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="sales" 
+                stroke={CHART_COLORS.sales} 
+                strokeWidth={3}
+                name="Sales"
+                dot={{ fill: CHART_COLORS.sales, strokeWidth: 2, r: 4 }}
               />
-            </AreaChart>
+              <Line 
+                type="monotone" 
+                dataKey="purchases" 
+                stroke={CHART_COLORS.purchases} 
+                strokeWidth={3}
+                name="Purchases"
+                dot={{ fill: CHART_COLORS.purchases, strokeWidth: 2, r: 4 }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="profit" 
+                stroke={CHART_COLORS.profit} 
+                strokeWidth={3}
+                name="Profit"
+                dot={{ fill: CHART_COLORS.profit, strokeWidth: 2, r: 4 }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Bottom Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Top Products - Horizontal Bar Chart */}
-        <Card className="lg:col-span-2 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-800">Top Products by Value</CardTitle>
-            <CardDescription className="text-gray-600">Highest inventory value products</CardDescription>
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Category Breakdown - Simple Bar Chart */}
+        <Card className="border border-gray-200 dark:border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+              Inventory by Category
+            </CardTitle>
+            <CardDescription className="text-gray-600 dark:text-gray-400">
+              Total value of products in each category
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={topProductsData} layout="horizontal" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis
-                  type="number"
-                  tickFormatter={(value) => `Rs ${(value / 1000).toFixed(0)}K`}
-                  tick={{ fontSize: 11 }}
+              <BarChart data={categoryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
                 />
-                <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 11 }} />
-                <Tooltip
+                <YAxis 
+                  tickFormatter={(value) => `Rs ${(value / 1000).toFixed(0)}K`} 
+                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                />
+                <Tooltip 
                   formatter={(value: any) => [`Rs ${value.toLocaleString()}`, "Value"]}
-                  labelFormatter={(label) => `Product: ${label}`}
+                  labelFormatter={(label) => `Category: ${label}`}
                 />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {topProductsData.map((entry, index) => (
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {categoryData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Performance Metrics - Donut Chart */}
-        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-800">Performance Metrics</CardTitle>
-            <CardDescription className="text-gray-600">Key performance indicators</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={performanceData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {performanceData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`${value}%`, "Performance"]} />
-                <Legend
-                  verticalAlign="bottom"
-                  height={36}
-                  formatter={(value, entry: any) => (
-                    <span style={{ color: entry.color, fontSize: "12px" }}>{value}</span>
-                  )}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-
-            {/* Performance Indicators */}
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {performanceData.map((metric, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: metric.fill }} />
-                    <span className="text-xs text-gray-600">{metric.name}</span>
+            
+            {/* Category Summary */}
+            <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Summary</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
+                {categoryData.slice(0, 4).map((category, index) => (
+                  <div key={index} className="flex justify-between">
+                    <span>{category.name}:</span>
+                    <span className="font-medium">{category.percentage}%</span>
                   </div>
-                  <span className="text-sm font-semibold">{metric.value}%</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Top Products - Simple Bar Chart */}
+        <Card className="border border-gray-200 dark:border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+              Top Products by Value
+            </CardTitle>
+            <CardDescription className="text-gray-600 dark:text-gray-400">
+              Products with highest inventory value
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={topProducts} layout="horizontal" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  type="number"
+                  tickFormatter={(value) => `Rs ${(value / 1000).toFixed(0)}K`}
+                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                />
+                <YAxis 
+                  dataKey="name" 
+                  type="category" 
+                  width={90} 
+                  tick={{ fontSize: 11, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#e5e7eb' }}
+                />
+                <Tooltip
+                  formatter={(value: any) => [`Rs ${value.toLocaleString()}`, "Value"]}
+                  labelFormatter={(label) => `Product: ${label}`}
+                />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} fill={CHART_COLORS.neutral} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Simple Summary Card */}
+      <Card className="border border-gray-200 dark:border-gray-700">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+            Quick Insights
+          </CardTitle>
+          <CardDescription className="text-gray-600 dark:text-gray-400">
+            Key takeaways from your data
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+                <span className="font-medium text-blue-800 dark:text-blue-200">Best Month</span>
+              </div>
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                June had the highest sales at Rs 67,000
+              </p>
+            </div>
+            
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-700">
+              <div className="flex items-center gap-2 mb-2">
+                <Package className="h-4 w-4 text-green-600" />
+                <span className="font-medium text-green-800 dark:text-green-200">Inventory</span>
+              </div>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                {categoryData.length} categories with {totalProducts} products
+              </p>
+            </div>
+            
+            <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="h-4 w-4 text-purple-600" />
+                <span className="font-medium text-purple-800 dark:text-purple-200">Profit Margin</span>
+              </div>
+              <p className="text-sm text-purple-700 dark:text-purple-300">
+                {totalSales > 0 ? ((totalProfit / totalSales) * 100).toFixed(1) : 0}% average profit margin
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

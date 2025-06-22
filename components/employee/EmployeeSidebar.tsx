@@ -2,30 +2,24 @@
 
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
-import { Home, Package, ShoppingCart, TrendingUp, Users, Truck, BarChart3, X, CheckCircle, ChevronLeft } from "lucide-react"
+import { Users, Building2, Clock, DollarSign, BarChart3, X, ChevronLeft, UserCheck, Calendar } from "lucide-react"
 
-interface SidebarProps {
+interface EmployeeSidebarProps {
   activeTab: string
   setActiveTab: (tab: string) => void
   isOpen: boolean
   setIsOpen: (open: boolean) => void
 }
 
-export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: SidebarProps) {
+export default function EmployeeSidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: EmployeeSidebarProps) {
   const { user } = useAuth()
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: Home, adminOnly: false },
-    { id: "products", label: "Products", icon: Package, adminOnly: false },
-    { id: "sales", label: "Sales", icon: TrendingUp, adminOnly: false },
-    { id: "purchases", label: "Purchases", icon: ShoppingCart, adminOnly: false },
-    { id: "stock-view", label: "Stock View", icon: Package, adminOnly: false },
-    { id: "batches", label: "Batches", icon: Truck, adminOnly: true },
-    { id: "clients", label: "Clients", icon: Users, adminOnly: false },
-    { id: "suppliers", label: "Suppliers", icon: Truck, adminOnly: false },
-    { id: "approvals", label: "Approvals", icon: CheckCircle, adminOnly: true },
-    { id: "reports", label: "Reports", icon: BarChart3, adminOnly: true },
-
+    { id: "dashboard", label: "Dashboard", icon: BarChart3, adminOnly: false },
+    { id: "employee-details", label: "Employee Details", icon: Users, adminOnly: false },
+    { id: "monthly-salary", label: "Monthly Salary Details", icon: DollarSign, adminOnly: false },
+    { id: "wages", label: "Wages Details", icon: DollarSign, adminOnly: false },
+    { id: "report", label: "Report", icon: BarChart3, adminOnly: true },
   ]
 
   const filteredMenuItems = menuItems.filter((item) => !item.adminOnly || user?.role === "admin")
@@ -46,8 +40,8 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: 
       `}
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-700 dark:border-gray-600">
-          <h1 className="text-xl font-bold text-white">
-            Inventory Pro
+          <h1 className="text-xl text-modern-bold text-white">
+            Employee Pro
           </h1>
           <div className="flex items-center gap-2">
             <Button
@@ -78,7 +72,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: 
                 <Button
                   key={item.id}
                   variant={activeTab === item.id ? "default" : "ghost"}
-                  className={`w-full justify-start mb-2 transition-all duration-200 ${
+                  className={`w-full justify-start mb-2 transition-all duration-200 text-modern ${
                     activeTab === item.id
                       ? "text-white shadow-lg bg-gray-700 hover:bg-gray-600"
                       : "text-gray-300 hover:text-white hover:bg-gray-700 dark:hover:bg-gray-600"
@@ -101,11 +95,11 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: 
 
         <div className="absolute bottom-4 left-4 right-4">
           <div className="bg-gray-800 dark:bg-gray-700 backdrop-blur-sm rounded-lg p-4 border border-gray-600 dark:border-gray-500">
-            <p className="text-sm font-medium text-white">{user?.name}</p>
-            <p className="text-xs text-gray-300 capitalize">{user?.role}</p>
+            <p className="text-sm text-modern-medium text-white">{user?.name}</p>
+            <p className="text-xs text-gray-300 capitalize text-modern">{user?.role}</p>
           </div>
         </div>
       </div>
     </>
   )
-}
+} 

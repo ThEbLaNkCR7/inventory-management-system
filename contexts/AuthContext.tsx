@@ -19,8 +19,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Mock users for demo
-const mockUsers = [
+// Demo users for initial setup
+const demoUsers = [
   { id: "1", email: "admin@demo.com", password: "admin123", name: "Admin User", role: "admin" as const },
   { id: "2", email: "user@demo.com", password: "user123", name: "Regular User", role: "user" as const },
 ]
@@ -30,20 +30,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check for stored user on mount
-    const storedUser = localStorage.getItem("user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    }
+    // Don't automatically restore user session from localStorage
+    // This ensures the login page always shows on startup
     setLoading(false)
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
     // Simulate API call
-    const foundUser = mockUsers.find((u) => u.email === email && u.password === password)
+    const foundUser = demoUsers.find((u) => u.email === email && u.password === password)
     if (foundUser) {
       const userData = { id: foundUser.id, email: foundUser.email, name: foundUser.name, role: foundUser.role }
       setUser(userData)
+      // Still store in localStorage for the current session
       localStorage.setItem("user", JSON.stringify(userData))
       return true
     }

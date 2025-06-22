@@ -128,177 +128,185 @@ export default function BatchesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Batch Management</h1>
-          <p className="text-gray-600">Manage inventory batches and shipments</p>
+    <div className="space-y-8 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      <div className="relative">
+        <div className="space-y-2">
+          <h1 className="section-title">
+            Batches
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 text-lg">Track and manage product batches and lot numbers</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={resetForm}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Batch
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Batch</DialogTitle>
-              <DialogDescription>Add multiple items to a new inventory batch</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="batchNumber">Batch Number</Label>
-                  <Input
-                    id="batchNumber"
-                    value={formData.batchNumber}
-                    onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-                    placeholder="BATCH-2024-XXX"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="supplier">Supplier</Label>
-                  <Select
-                    value={formData.supplier}
-                    onValueChange={(value) => setFormData({ ...formData, supplier: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select supplier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.company}>
-                          {supplier.company}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="arrivalDate">Arrival Date</Label>
-                  <Input
-                    id="arrivalDate"
-                    type="date"
-                    value={formData.arrivalDate}
-                    onChange={(e) => setFormData({ ...formData, arrivalDate: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Batch Items</h3>
-                  <Button type="button" onClick={addBatchItem} variant="outline" size="sm">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Item
-                  </Button>
-                </div>
-
-                {batchItems.map((item, index) => (
-                  <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 border rounded-lg">
-                    <div className="space-y-2">
-                      <Label>Product</Label>
-                      <Select
-                        value={item.productId}
-                        onValueChange={(value) => updateBatchItem(index, "productId", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Quantity</Label>
-                      <Input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateBatchItem(index, "quantity", Number.parseInt(e.target.value) || 0)}
-                        min="1"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Unit Cost (Rs)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={item.unitCost}
-                        onChange={(e) => updateBatchItem(index, "unitCost", Number.parseFloat(e.target.value) || 0)}
-                        min="0"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Expiry Date (Optional)</Label>
-                      <Input
-                        type="date"
-                        value={item.expiryDate || ""}
-                        onChange={(e) => updateBatchItem(index, "expiryDate", e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <Button type="button" onClick={() => removeBatchItem(index)} variant="outline" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+        <div className="absolute top-6 right-0 flex space-x-3">
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                onClick={resetForm}
+                variant="neutral"
+                className="shadow-lg hover:shadow-xl transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                Add Batch
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New Batch</DialogTitle>
+                <DialogDescription>Add multiple items to a new inventory batch</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="batchNumber">Batch Number</Label>
+                    <Input
+                      id="batchNumber"
+                      value={formData.batchNumber}
+                      onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
+                      placeholder="BATCH-2024-XXX"
+                      required
+                    />
                   </div>
-                ))}
+                  <div className="space-y-2">
+                    <Label htmlFor="supplier">Supplier</Label>
+                    <Select
+                      value={formData.supplier}
+                      onValueChange={(value) => setFormData({ ...formData, supplier: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select supplier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliers.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.company}>
+                            {supplier.company}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="arrivalDate">Arrival Date</Label>
+                    <Input
+                      id="arrivalDate"
+                      type="date"
+                      value={formData.arrivalDate}
+                      onChange={(e) => setFormData({ ...formData, arrivalDate: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
 
-                {batchItems.length === 0 && (
-                  <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                    <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-gray-500">No items added yet. Click "Add Item" to start.</p>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-medium">Batch Items</h3>
+                    <Button type="button" onClick={addBatchItem} variant="neutralOutline" size="sm">
+                      <Plus className="h-4 w-4" />
+                      Add Item
+                    </Button>
+                  </div>
+
+                  {batchItems.map((item, index) => (
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 p-4 border rounded-lg">
+                      <div className="space-y-2">
+                        <Label>Product</Label>
+                        <Select
+                          value={item.productId}
+                          onValueChange={(value) => updateBatchItem(index, "productId", value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Quantity</Label>
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => updateBatchItem(index, "quantity", Number.parseInt(e.target.value) || 0)}
+                          min="1"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Unit Cost (Rs)</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={item.unitCost}
+                          onChange={(e) => updateBatchItem(index, "unitCost", Number.parseFloat(e.target.value) || 0)}
+                          min="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Expiry Date (Optional)</Label>
+                        <Input
+                          type="date"
+                          value={item.expiryDate || ""}
+                          onChange={(e) => updateBatchItem(index, "expiryDate", e.target.value)}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button type="button" onClick={() => removeBatchItem(index)} variant="neutralOutline" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {batchItems.length === 0 && (
+                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                      <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <p className="text-gray-500">No items added yet. Click "Add Item" to start.</p>
+                    </div>
+                  )}
+                </div>
+
+                {batchItems.length > 0 && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">Batch Summary</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">Total Items:</span>{" "}
+                        <span className="font-medium">{batchItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Total Value:</span>{" "}
+                        <span className="font-medium">
+                          Rs {batchItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
 
-              {batchItems.length > 0 && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2">Batch Summary</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Total Items:</span>{" "}
-                      <span className="font-medium">{batchItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Total Value:</span>{" "}
-                      <span className="font-medium">
-                        ${batchItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Create Batch</Button>
                 </div>
-              )}
-
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Create Batch</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Search */}
-      <Card>
+      <Card className="dark:bg-gray-800 dark:border-gray-700">
         <CardContent className="pt-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-5 w-5" />
             <Input
               placeholder="Search batches..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-12 border-2 focus:border-slate-500 transition-colors h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
             />
           </div>
         </CardContent>
@@ -307,7 +315,7 @@ export default function BatchesPage() {
       {/* Batches Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredBatches.map((batch) => (
-          <Card key={batch.id} className="hover:shadow-lg transition-shadow">
+          <Card key={batch.id} className="hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>

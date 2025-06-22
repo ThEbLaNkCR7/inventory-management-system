@@ -31,6 +31,8 @@ import {
   FileText,
   ArrowRight,
   Info,
+  X,
+  Check,
 } from "lucide-react"
 
 export default function ApprovalsPage() {
@@ -74,26 +76,26 @@ export default function ApprovalsPage() {
   const getActionColor = (action: string) => {
     switch (action) {
       case "create":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200"
+        return "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
       case "update":
-        return "bg-blue-100 text-blue-800 border-blue-200"
+        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
       case "delete":
-        return "bg-red-100 text-red-800 border-red-200"
+        return "bg-zinc-100 text-zinc-800 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700"
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
     }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
-        return "bg-amber-100 text-amber-800 border-amber-200"
+        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700"
       case "approved":
-        return "bg-green-100 text-green-800 border-green-200"
+        return "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/20 dark:text-slate-300 dark:border-slate-700"
       case "rejected":
-        return "bg-red-100 text-red-800 border-red-200"
+        return "bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-900/20 dark:text-zinc-300 dark:border-zinc-700"
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300 dark:border-gray-700"
     }
   }
 
@@ -168,16 +170,16 @@ export default function ApprovalsPage() {
     if (action === "create") {
       return (
         <div className="space-y-4">
-          <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg p-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 dark:bg-slate-900/20 dark:border-slate-700">
             <div className="flex items-center space-x-2 mb-3">
-              <Plus className="h-5 w-5 text-emerald-600" />
-              <Label className="text-lg font-semibold text-emerald-800">New Record Details</Label>
+              <Plus className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+              <Label className="text-lg font-semibold text-slate-800 dark:text-slate-200">New Record Details</Label>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {Object.entries(proposedData).map(([key, value]) => (
-                <div key={key} className="bg-white rounded-md p-3 border border-emerald-200">
-                  <div className="text-sm font-medium text-emerald-700">{getFieldDisplayName(key)}</div>
-                  <div className="text-emerald-900 font-semibold">{formatValue(key, value)}</div>
+                <div key={key} className="bg-white dark:bg-slate-800 rounded-md p-3 border border-slate-200 dark:border-slate-700">
+                  <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{getFieldDisplayName(key)}</div>
+                  <div className="text-slate-900 dark:text-slate-100 font-semibold">{formatValue(key, value)}</div>
                 </div>
               ))}
             </div>
@@ -189,16 +191,16 @@ export default function ApprovalsPage() {
     if (action === "delete") {
       return (
         <div className="space-y-4">
-          <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg p-4">
+          <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 dark:bg-zinc-900/20 dark:border-zinc-700">
             <div className="flex items-center space-x-2 mb-3">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              <Label className="text-lg font-semibold text-red-800">Record to be Deleted</Label>
+              <AlertTriangle className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+              <Label className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Record to be Deleted</Label>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {Object.entries(originalData).map(([key, value]) => (
-                <div key={key} className="bg-white rounded-md p-3 border border-red-200">
-                  <div className="text-sm font-medium text-red-700">{getFieldDisplayName(key)}</div>
-                  <div className="text-red-900 font-semibold">{formatValue(key, value)}</div>
+                <div key={key} className="bg-white dark:bg-zinc-800 rounded-md p-3 border border-zinc-200 dark:border-zinc-700">
+                  <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{getFieldDisplayName(key)}</div>
+                  <div className="text-zinc-900 dark:text-zinc-100 font-semibold">{formatValue(key, value)}</div>
                 </div>
               ))}
             </div>
@@ -214,44 +216,44 @@ export default function ApprovalsPage() {
       <div className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Current Data */}
-          <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg p-4">
+          <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 dark:bg-zinc-900/20 dark:border-zinc-700">
             <div className="flex items-center space-x-2 mb-3">
-              <Minus className="h-5 w-5 text-red-600" />
-              <Label className="text-lg font-semibold text-red-800">Current Data</Label>
+              <Minus className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+              <Label className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Current Data</Label>
             </div>
             <div className="space-y-3">
               {Object.entries(originalData).map(([key, value]) => (
                 <div
                   key={key}
-                  className={`bg-white rounded-md p-3 border ${
-                    changedFields.includes(key) ? "border-red-300 bg-red-50" : "border-red-200"
+                  className={`bg-white dark:bg-zinc-800 rounded-md p-3 border ${
+                    changedFields.includes(key) ? "border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900/40" : "border-zinc-200 dark:border-zinc-700"
                   }`}
                 >
-                  <div className="text-sm font-medium text-red-700">{getFieldDisplayName(key)}</div>
-                  <div className="text-red-900 font-semibold">{formatValue(key, value)}</div>
+                  <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{getFieldDisplayName(key)}</div>
+                  <div className="text-zinc-900 dark:text-zinc-100 font-semibold">{formatValue(key, value)}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Proposed Data */}
-          <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 dark:bg-slate-900/20 dark:border-slate-700">
             <div className="flex items-center space-x-2 mb-3">
-              <Plus className="h-5 w-5 text-green-600" />
-              <Label className="text-lg font-semibold text-green-800">Proposed Changes</Label>
+              <Plus className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+              <Label className="text-lg font-semibold text-slate-800 dark:text-slate-200">Proposed Changes</Label>
             </div>
             <div className="space-y-3">
               {Object.entries(proposedData).map(([key, value]) => (
                 <div
                   key={key}
-                  className={`bg-white rounded-md p-3 border ${
-                    changedFields.includes(key) ? "border-green-300 bg-green-50" : "border-green-200"
+                  className={`bg-white dark:bg-slate-800 rounded-md p-3 border ${
+                    changedFields.includes(key) ? "border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40" : "border-slate-200 dark:border-slate-700"
                   }`}
                 >
-                  <div className="text-sm font-medium text-green-700">{getFieldDisplayName(key)}</div>
-                  <div className="text-green-900 font-semibold">{formatValue(key, value)}</div>
+                  <div className="text-sm font-medium text-slate-700 dark:text-slate-300">{getFieldDisplayName(key)}</div>
+                  <div className="text-slate-900 dark:text-slate-100 font-semibold">{formatValue(key, value)}</div>
                   {changedFields.includes(key) && (
-                    <div className="flex items-center mt-1 text-xs text-green-600">
+                    <div className="flex items-center mt-1 text-xs text-slate-600 dark:text-slate-400">
                       <ArrowRight className="h-3 w-3 mr-1" />
                       Changed from: {formatValue(key, originalData[key])}
                     </div>
@@ -264,14 +266,14 @@ export default function ApprovalsPage() {
 
         {/* Summary of Changes */}
         {changedFields.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 dark:bg-gray-900/20 dark:border-gray-700">
             <div className="flex items-center space-x-2 mb-2">
-              <Info className="h-4 w-4 text-blue-600" />
-              <Label className="text-sm font-semibold text-blue-800">Summary of Changes</Label>
+              <Info className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              <Label className="text-sm font-semibold text-gray-800 dark:text-gray-200">Summary of Changes</Label>
             </div>
-            <div className="text-sm text-blue-700">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
               {changedFields.length} field{changedFields.length > 1 ? "s" : ""} will be updated:{" "}
-              <span className="font-medium">{changedFields.map(getFieldDisplayName).join(", ")}</span>
+              {changedFields.map((field) => getFieldDisplayName(field)).join(", ")}
             </div>
           </div>
         )}
@@ -280,77 +282,65 @@ export default function ApprovalsPage() {
   }
 
   const renderApprovalSection = (title: string, changes: any[], icon: React.ReactNode, color: string) => (
-    <Card className="mb-6">
+    <Card className="mb-6 dark:bg-gray-800 dark:border-gray-700">
       <CardHeader className={`${color} text-white`}>
         <CardTitle className="flex items-center space-x-2">
           {icon}
-          <span>
-            {title} ({changes.length})
-          </span>
+          <span>{title}</span>
+          <Badge variant="secondary" className="ml-2">
+            {changes.length}
+          </Badge>
         </CardTitle>
         <CardDescription className="text-white/80">Review and approve {title.toLowerCase()} changes</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
-        {changes.length > 0 ? (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Requested By</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {changes.map((change) => (
-                  <TableRow key={change.id} className="hover:bg-gray-50">
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        {getActionIcon(change.action)}
-                        <Badge className={`${getActionColor(change.action)} border`}>{change.action}</Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 mr-2 text-gray-400" />
-                        <span className="font-medium">{change.requestedBy}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                        <span className="text-sm">{formatDate(change.requestedAt)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs">
-                        <p className="text-sm truncate" title={change.reason}>
-                          {change.reason || "No reason provided"}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openReviewDialog(change)}
-                        className="hover:bg-blue-50 hover:border-blue-300"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        {changes.length === 0 ? (
+          <div className="p-6 text-center">
+            <p className="text-gray-500 dark:text-gray-400">No {title.toLowerCase()} changes pending approval</p>
           </div>
         ) : (
-          <div className="text-center py-8">
-            <CheckCircle className="mx-auto h-12 w-12 text-green-400 mb-4" />
-            <p className="text-gray-500">No pending {title.toLowerCase()} approvals</p>
+          <div className="divide-y">
+            {changes.map((change, index) => (
+              <div key={index} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-full ${getActionColor(change.action)}`}>
+                      {getActionIcon(change.action)}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                        {change.action.charAt(0).toUpperCase() + change.action.slice(1)} {change.type}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Requested by {change.requestedBy} on {formatDate(change.requestedAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className={getStatusColor(change.status)}>{change.status}</Badge>
+                </div>
+
+                {renderDataComparison(change.originalData, change.proposedData, change.action)}
+
+                {change.status === "pending" && (
+                  <div className="flex justify-end space-x-2 mt-4 pt-4 border-t">
+                    <Button onClick={() => {
+                      setSelectedChange(change)
+                      handleReject()
+                    }} variant="neutralOutline" size="sm">
+                      <X className="h-4 w-4 mr-1" />
+                      Reject
+                    </Button>
+                    <Button onClick={() => {
+                      setSelectedChange(change)
+                      handleApprove()
+                    }} variant="neutral" size="sm">
+                      <Check className="h-4 w-4 mr-1" />
+                      Approve
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
@@ -360,23 +350,59 @@ export default function ApprovalsPage() {
   if (user?.role !== "admin") {
     return (
       <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-        <p className="text-gray-600">You don't have permission to view this page.</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Access Denied</h2>
+        <p className="text-gray-600 dark:text-gray-400">You don't have permission to view this page.</p>
+      </div>
+    )
+  }
+
+  if (pendingChanges.length === 0) {
+    return (
+      <div className="space-y-8 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+        <div className="relative">
+          <div className="space-y-2">
+            <h1 className="section-title">
+              Approvals
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300 text-lg">Review and approve system changes</p>
+          </div>
+        </div>
+
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <CardContent className="text-center py-12">
+            <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">All Caught Up!</h3>
+            <p className="text-gray-600 dark:text-gray-400">No pending approvals at the moment.</p>
+          </CardContent>
+        </Card>
+
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <CardHeader>
+            <CardTitle>Approval History</CardTitle>
+            <CardDescription>Previously reviewed changes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-8">No approval history available</p>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      <div className="space-y-2">
+        <h1 className="section-title">
+          Approval Management
+        </h1>
+        <p className="text-gray-600 dark:text-gray-300 text-lg">Review and manage pending approval requests</p>
+      </div>
+
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Approval Management</h1>
-          <p className="text-gray-600">Review and approve user-submitted changes</p>
-        </div>
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2 bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-200">
-            <Clock className="h-5 w-5 text-yellow-600" />
-            <span className="text-sm font-medium text-yellow-800">{pendingList.length} Total Pending</span>
+          <div className="flex items-center space-x-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200 dark:bg-amber-900/20 dark:border-amber-700">
+            <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <span className="text-sm font-medium text-amber-800 dark:text-amber-200">{pendingList.length} Total Pending</span>
           </div>
         </div>
       </div>
@@ -395,13 +421,13 @@ export default function ApprovalsPage() {
 
         <TabsContent value="pending" className="space-y-4">
           {/* Products Section */}
-          {renderApprovalSection("Product Changes", pendingProducts, <Package className="h-5 w-5" />, "bg-blue-600")}
+          {renderApprovalSection("Product Changes", pendingProducts, <Package className="h-5 w-5" />, "bg-slate-600")}
 
           {/* Sales Section */}
-          {renderApprovalSection("Sales Changes", pendingSales, <ShoppingCart className="h-5 w-5" />, "bg-green-600")}
+          {renderApprovalSection("Sales Changes", pendingSales, <ShoppingCart className="h-5 w-5" />, "bg-gray-600")}
 
           {/* Purchases Section */}
-          {renderApprovalSection("Purchase Changes", pendingPurchases, <Users className="h-5 w-5" />, "bg-purple-600")}
+          {renderApprovalSection("Purchase Changes", pendingPurchases, <Users className="h-5 w-5" />, "bg-zinc-600")}
 
           {pendingList.length === 0 && (
             <Card>
@@ -568,7 +594,7 @@ export default function ApprovalsPage() {
 
           {/* Action Buttons */}
           <div className="flex justify-end space-x-3 pt-4 border-t">
-            <Button variant="outline" onClick={() => setIsReviewDialogOpen(false)} className="px-6">
+            <Button variant="neutralOutline" onClick={() => setIsReviewDialogOpen(false)} className="px-6">
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleReject} className="px-6 bg-red-600 hover:bg-red-700">
