@@ -30,8 +30,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Don't automatically restore user session from localStorage
-    // This ensures the login page always shows on startup
+    // Restore user session from localStorage on page reload
+    const savedUser = localStorage.getItem("user")
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser)
+        setUser(userData)
+      } catch (error) {
+        console.error("Error parsing saved user data:", error)
+        localStorage.removeItem("user")
+      }
+    }
     setLoading(false)
   }, [])
 
