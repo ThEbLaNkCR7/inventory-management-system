@@ -1,0 +1,15 @@
+# Copy this content to a new file named .env in the server directory
+
+# MongoDB Configuration
+# Replace with your actual MongoDB Atlas connection string
+MONGODB_URI=mongodb+srv://your_username:your_password@your_cluster.mongodb.net/inventory_management?retryWrites=true&w=majority
+
+# Server Configuration
+PORT=5000
+
+# JWT Secret (for authentication)
+# Change this to a secure random string in production
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Environment
+NODE_ENV=development 

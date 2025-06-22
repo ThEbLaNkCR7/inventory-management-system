@@ -47,7 +47,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: 
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-700 dark:border-gray-600">
           <h1 className="text-xl font-bold text-white">
-            Inventory Pro
+            Sheel Inventory Pro
           </h1>
           <div className="flex items-center gap-2">
             <Button

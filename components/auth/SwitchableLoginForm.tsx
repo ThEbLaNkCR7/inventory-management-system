@@ -65,7 +65,7 @@ export default function SwitchableLoginForm() {
           </div>
           <div>
             <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">
-              {activeTab === "inventory" ? "Inventory Management" : "Employee Management"}
+              {activeTab === "inventory" ? "Sheel Inventory Management" : "Sheel Employment Management"}
             </CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-300 mt-2">
               {activeTab === "inventory" 
@@ -93,15 +93,7 @@ export default function SwitchableLoginForm() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                   <Building2 className="h-4 w-4" />
-                  <span>System: Inventory Management</span>
-                </div>
-                <div className="flex gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    Admin: admin@demo.com / admin123
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    User: user@demo.com / user123
-                  </Badge>
+                  <span>System: Sheel Inventory Management</span>
                 </div>
               </div>
             </TabsContent>
@@ -110,15 +102,7 @@ export default function SwitchableLoginForm() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                   <UserCheck className="h-4 w-4" />
-                  <span>System: Employee Management</span>
-                </div>
-                <div className="flex gap-2">
-                  <Badge variant="secondary" className="text-xs">
-                    Admin: admin@demo.com / admin123
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    User: user@demo.com / user123
-                  </Badge>
+                  <span>System: Sheel Employment Management</span>
                 </div>
               </div>
             </TabsContent>
@@ -173,16 +157,10 @@ export default function SwitchableLoginForm() {
                   Signing in...
                 </div>
               ) : (
-                `Sign in to ${activeTab === "inventory" ? "Inventory" : "Employee"} System`
+                `Sign in to ${activeTab === "inventory" ? "Sheel Inventory" : "Sheel Employment"} System`
               )}
             </Button>
           </form>
-
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Demo credentials work for both systems
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

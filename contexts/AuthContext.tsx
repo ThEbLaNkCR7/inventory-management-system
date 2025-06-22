@@ -19,10 +19,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Demo users for initial setup
-const demoUsers = [
-  { id: "1", email: "admin@demo.com", password: "admin123", name: "Admin User", role: "admin" as const },
-  { id: "2", email: "user@demo.com", password: "user123", name: "Regular User", role: "user" as const },
+// Fallback users if API is not available
+const fallbackUsers = [
+  { id: "1", email: "admin@sheelwaterproofing.com", password: "loltheblank@CR7", name: "Admin User", role: "admin" as const },
+  { id: "2", email: "user@sheelwaterproofing.com", password: "user@sheel", name: "Regular User", role: "user" as const },
 ]
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -36,14 +36,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call
-    const foundUser = demoUsers.find((u) => u.email === email && u.password === password)
-    if (foundUser) {
-      const userData = { id: foundUser.id, email: foundUser.email, name: foundUser.name, role: foundUser.role }
-      setUser(userData)
-      // Still store in localStorage for the current session
-      localStorage.setItem("user", JSON.stringify(userData))
-      return true
+    try {
+      // Try to connect to API first
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+        localStorage.setItem("user", JSON.stringify(data.user))
+        return true
+      } else {
+        // If API fails, fall back to local authentication
+        const foundUser = fallbackUsers.find((u) => u.email === email && u.password === password)
+        if (foundUser) {
+          const userData = { id: foundUser.id, email: foundUser.email, name: foundUser.name, role: foundUser.role }
+          setUser(userData)
+          localStorage.setItem("user", JSON.stringify(userData))
+          return true
+        }
+      }
+    } catch (error) {
+      console.log("API not available, using fallback authentication")
+      // Fallback to local authentication
+      const foundUser = fallbackUsers.find((u) => u.email === email && u.password === password)
+      if (foundUser) {
+        const userData = { id: foundUser.id, email: foundUser.email, name: foundUser.name, role: foundUser.role }
+        setUser(userData)
+        localStorage.setItem("user", JSON.stringify(userData))
+        return true
+      }
     }
     return false
   }

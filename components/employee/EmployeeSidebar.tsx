@@ -41,7 +41,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, isOpen, setIs
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-700 dark:border-gray-600">
           <h1 className="text-xl text-modern-bold text-white">
-            Employee Pro
+            Sheel Employment Pro
           </h1>
           <div className="flex items-center gap-2">
             <Button

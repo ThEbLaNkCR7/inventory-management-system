@@ -54,7 +54,7 @@ export default function Header({ user, onMenuClick }: HeaderProps) {
           </Button>
           <div className="text-center flex-1 lg:flex-none">
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              {isEmployeeSystem ? "Employee Management" : "Inventory Management"}
+              {isEmployeeSystem ? "Sheel Employment Management" : "Sheel Inventory Management"}
             </h1>
           </div>
         </div>
