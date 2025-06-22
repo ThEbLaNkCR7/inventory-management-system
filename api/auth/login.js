@@ -6,12 +6,18 @@ import User from '../../models/User.js'
 // Connect to MongoDB
 const connectDB = async () => {
   try {
+    if (mongoose.connection.readyState === 1) {
+      return // Already connected
+    }
+    
     await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     })
+    console.log('MongoDB connected successfully')
   } catch (error) {
     console.error('MongoDB connection error:', error)
+    throw error
   }
 }
 
