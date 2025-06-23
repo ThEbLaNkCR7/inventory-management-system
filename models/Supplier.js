@@ -10,6 +10,7 @@ const supplierSchema = new mongoose.Schema({
   orders: { type: Number, default: 0 },
   totalSpent: { type: Number, default: 0 },
   lastOrder: { type: Date },
+  isActive: { type: Boolean, default: true },
 }, { timestamps: true })
 
 export default mongoose.models.Supplier || mongoose.model("Supplier", supplierSchema) 

@@ -7,6 +7,7 @@ const saleSchema = new mongoose.Schema({
   quantitySold: { type: Number, required: true },
   salePrice: { type: Number, required: true },
   saleDate: { type: Date, required: true },
+  isActive: { type: Boolean, default: true },
 }, { timestamps: true })
 
 export default mongoose.models.Sale || mongoose.model("Sale", saleSchema) 

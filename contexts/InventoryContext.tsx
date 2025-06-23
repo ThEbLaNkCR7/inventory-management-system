@@ -17,6 +17,7 @@ export interface Product {
   batchNumber?: string
   stockType: "new" | "old"
   lastRestocked?: string
+  isActive?: boolean
 }
 
 export interface Purchase {
@@ -27,6 +28,7 @@ export interface Purchase {
   quantityPurchased: number
   purchasePrice: number
   purchaseDate: string
+  isActive?: boolean
 }
 
 export interface Sale {
@@ -37,6 +39,7 @@ export interface Sale {
   quantitySold: number
   salePrice: number
   saleDate: string
+  isActive?: boolean
 }
 
 export interface Client {
@@ -47,6 +50,7 @@ export interface Client {
   company: string
   status: string
   address: string
+  isActive?: boolean
 }
 
 export interface Supplier {
@@ -60,6 +64,7 @@ export interface Supplier {
   orders: number
   totalSpent: number
   lastOrder: string
+  isActive?: boolean
 }
 
 interface InventoryContextType {
@@ -140,11 +145,11 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         const salesData = await salesRes.json()
         const clientsData = await clientsRes.json()
         const suppliersData = await suppliersRes.json()
-        setProducts(productsData.products || [])
-        setPurchases(purchasesData.purchases || [])
-        setSales(salesData.sales || [])
-        setClients((clientsData.clients || []).map((c: any) => ({ ...c, id: c._id || c.id })))
-        setSuppliers(suppliersData.suppliers || [])
+        setProducts((productsData.products || []).map((p: any) => ({ ...p, id: p._id || p.id })).filter((p: any) => p.isActive !== false))
+        setPurchases((purchasesData.purchases || []).map((p: any) => ({ ...p, id: p._id || p.id })).filter((p: any) => p.isActive !== false))
+        setSales((salesData.sales || []).map((s: any) => ({ ...s, id: s._id || s.id })).filter((s: any) => s.isActive !== false))
+        setClients((clientsData.clients || []).map((c: any) => ({ ...c, id: c._id || c.id })).filter((c: any) => c.isActive !== false))
+        setSuppliers((suppliersData.suppliers || []).map((s: any) => ({ ...s, id: s._id || s.id })).filter((s: any) => s.isActive !== false))
       } catch (error) {
         console.error("Failed to fetch inventory data:", error)
       }
@@ -189,7 +194,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete product")
-      setProducts((prev) => prev.filter((p) => p.id !== id))
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, isActive: false } : p)))
     } catch (error) {
       console.error("Delete product error:", error)
     }
@@ -228,7 +233,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`/api/purchases/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete purchase")
-      setPurchases((prev) => prev.filter((p) => p.id !== id))
+      setPurchases((prev) => prev.map((p) => (p.id === id ? { ...p, isActive: false } : p)))
     } catch (error) {
       console.error("Delete purchase error:", error)
     }
@@ -267,7 +272,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`/api/sales/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete sale")
-      setSales((prev) => prev.filter((s) => s.id !== id))
+      setSales((prev) => prev.map((s) => (s.id === id ? { ...s, isActive: false } : s)))
     } catch (error) {
       console.error("Delete sale error:", error)
     }
@@ -306,7 +311,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`/api/clients/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete client")
-      setClients((prev) => prev.filter((c) => c.id !== id))
+      setClients((prev) => prev.map((c) => (c.id === id ? { ...c, isActive: false } : c)))
     } catch (error) {
       console.error("Delete client error:", error)
     }
@@ -345,7 +350,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`/api/suppliers/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete supplier")
-      setSuppliers((prev) => prev.filter((s) => s.id !== id))
+      setSuppliers((prev) => prev.map((s) => (s.id === id ? { ...s, isActive: false } : s)))
     } catch (error) {
       console.error("Delete supplier error:", error)
     }

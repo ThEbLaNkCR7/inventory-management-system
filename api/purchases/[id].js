@@ -1,5 +1,42 @@
-import dbConnect from '../../../lib/mongodb'
+import mongoose from 'mongoose'
 import Purchase from '../../../models/Purchase'
+
+const MONGODB_URI = process.env.MONGODB_URI
+
+if (!MONGODB_URI) {
+  throw new Error('Please define the MONGODB_URI environment variable')
+}
+
+let cached = global.mongoose
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null }
+}
+
+async function dbConnect() {
+  if (cached.conn) {
+    return cached.conn
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false,
+    }
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      return mongoose
+    })
+  }
+
+  try {
+    cached.conn = await cached.promise
+  } catch (e) {
+    cached.promise = null
+    throw e
+  }
+
+  return cached.conn
+}
 
 export default async function handler(req, res) {
   await dbConnect()
@@ -26,7 +63,7 @@ export default async function handler(req, res) {
       break
     case 'DELETE':
       try {
-        const purchase = await Purchase.findByIdAndDelete(id)
+        const purchase = await Purchase.findByIdAndUpdate(id, { isActive: false }, { new: true })
         if (!purchase) return res.status(404).json({ message: 'Purchase not found' })
         res.status(200).json({ message: 'Purchase deleted successfully' })
       } catch (error) {

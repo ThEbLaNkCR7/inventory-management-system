@@ -27,7 +27,7 @@ import { Plus, Search, Edit, Trash2, CheckCircle, AlertTriangle, Clock } from "l
 
 export default function PurchasesPage() {
   const { user } = useAuth()
-  const { products, purchases, suppliers, addPurchase } = useInventory()
+  const { products, purchases, suppliers, addPurchase, updatePurchase, deletePurchase } = useInventory()
   const { submitChange } = useApproval()
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -114,8 +114,11 @@ export default function PurchasesPage() {
     const product = products.find((p) => p.id === formData.productId)
     if (product && editingPurchase && editReason.trim()) {
       if (user?.role === "admin") {
-        // Admin can edit directly (implement direct edit logic here)
-        console.log("Admin direct edit")
+        // Admin can edit directly
+        updatePurchase(editingPurchase.id, {
+          ...formData,
+          productName: product.name,
+        })
         showAlert("Purchase updated successfully!")
       } else {
         // Submit for approval
@@ -151,8 +154,8 @@ export default function PurchasesPage() {
     const reason = prompt("Please provide a reason for deleting this purchase:")
     if (reason && reason.trim()) {
       if (user?.role === "admin") {
-        // Admin can delete directly (implement direct delete logic here)
-        console.log("Admin direct delete")
+        // Admin can delete directly
+        deletePurchase(purchase.id)
         showAlert("Purchase deleted successfully!")
       } else {
         // Submit for approval
@@ -201,14 +204,130 @@ export default function PurchasesPage() {
             </div>
           )}
         </div>
-        <div className="absolute top-6 right-0 flex space-x-2">
+        <div className="absolute top-6 right-0 flex space-x-3">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={resetForm} variant="neutral">
-                <Plus className="mr-2 h-4 w-4" />
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                variant="neutral"
+                className="shadow-lg hover:shadow-xl transition-all"
+              >
+                <Plus className="h-4 w-4" />
                 Add Purchase
               </Button>
             </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add New Purchase</DialogTitle>
+                <DialogDescription>
+                  Enter purchase information to record a new purchase
+                  {user?.role !== "admin" && (
+                    <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                      <div className="flex items-center text-amber-800 dark:text-amber-200">
+                        <Clock className="h-4 w-4 mr-2" />
+                        <span className="text-sm font-medium">Changes require admin approval</span>
+                      </div>
+                    </div>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="product">Product *</Label>
+                  <Select
+                    value={formData.productId}
+                    onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name} (SKU: {product.sku})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="supplier">Supplier *</Label>
+                  <Select
+                    value={formData.supplier}
+                    onValueChange={(value) => setFormData({ ...formData, supplier: value })}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select supplier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.company}>
+                          {supplier.company}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity">Quantity *</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      value={formData.quantityPurchased}
+                      onChange={(e) =>
+                        setFormData({ ...formData, quantityPurchased: Number.parseInt(e.target.value) || 0 })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Unit Price (Rs) *</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.purchasePrice}
+                      onChange={(e) => setFormData({ ...formData, purchasePrice: Number.parseFloat(e.target.value) || 0 })}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="date">Purchase Date *</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.purchaseDate}
+                    onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reason">Reason for Changes {user?.role !== "admin" && "*"}</Label>
+                  <Textarea
+                    id="reason"
+                    value={editReason}
+                    onChange={(e) => setEditReason(e.target.value)}
+                    placeholder="Explain why you're making these changes..."
+                    rows={3}
+                    required={user?.role !== "admin"}
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {user?.role === "admin" ? "Add Purchase" : "Submit for Approval"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
           </Dialog>
         </div>
       </div>
