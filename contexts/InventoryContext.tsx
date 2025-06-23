@@ -143,7 +143,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         setProducts(productsData.products || [])
         setPurchases(purchasesData.purchases || [])
         setSales(salesData.sales || [])
-        setClients(clientsData.clients || [])
+        setClients((clientsData.clients || []).map((c: any) => ({ ...c, id: c._id || c.id })))
         setSuppliers(suppliersData.suppliers || [])
       } catch (error) {
         console.error("Failed to fetch inventory data:", error)
