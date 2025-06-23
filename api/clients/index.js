@@ -1,5 +1,7 @@
 import dbConnect from '../../lib/mongodb'
 import Client from '../../models/Client'
+import dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
 
 export default async function handler(req, res) {
   await dbConnect()

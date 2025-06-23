@@ -297,7 +297,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       })
       if (!res.ok) throw new Error("Failed to update client")
       const client = await res.json()
-      setClients((prev) => prev.map((c) => (c.id === id ? client : c)))
+      setClients((prev) => prev.map((c) => (c.id === id ? { ...client, id: client._id || client.id } : c)))
     } catch (error) {
       console.error("Update client error:", error)
     }
