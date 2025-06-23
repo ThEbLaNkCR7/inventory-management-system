@@ -32,7 +32,9 @@ export default function PurchasesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [editingPurchase, setEditingPurchase] = useState<any>(null)
+  const [deletingPurchase, setDeletingPurchase] = useState<any>(null)
   const [formData, setFormData] = useState({
     productId: "",
     supplier: "",
@@ -41,6 +43,7 @@ export default function PurchasesPage() {
     purchaseDate: new Date().toISOString().split("T")[0],
   })
   const [editReason, setEditReason] = useState("")
+  const [deleteReason, setDeleteReason] = useState("")
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
 
@@ -151,31 +154,40 @@ export default function PurchasesPage() {
   }
 
   const handleDelete = (purchase: any) => {
-    const reason = prompt("Please provide a reason for deleting this purchase:")
-    if (reason && reason.trim()) {
+    setDeletingPurchase(purchase)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (deletingPurchase && deleteReason.trim()) {
       if (user?.role === "admin") {
         // Admin can delete directly
-        deletePurchase(purchase.id)
+        deletePurchase(deletingPurchase.id)
         showAlert("Purchase deleted successfully!")
       } else {
         // Submit for approval
         submitChange({
           type: "purchase",
           action: "delete",
-          entityId: purchase.id,
+          entityId: deletingPurchase.id,
           originalData: {
-            productName: purchase.productName,
-            supplier: purchase.supplier,
-            quantityPurchased: purchase.quantityPurchased,
-            purchasePrice: purchase.purchasePrice,
-            purchaseDate: purchase.purchaseDate,
+            productName: deletingPurchase.productName,
+            supplier: deletingPurchase.supplier,
+            quantityPurchased: deletingPurchase.quantityPurchased,
+            purchasePrice: deletingPurchase.purchasePrice,
+            purchaseDate: deletingPurchase.purchaseDate,
           },
           proposedData: {},
           requestedBy: user?.email || "",
-          reason: reason,
+          reason: deleteReason,
         })
         showAlert("Purchase deletion submitted for admin approval. You'll be notified once it's reviewed.")
       }
+      setIsDeleteDialogOpen(false)
+      setDeletingPurchase(null)
+      setDeleteReason("")
+    } else if (!deleteReason.trim()) {
+      showAlert("Please provide a reason for deleting this purchase", false)
     }
   }
 
@@ -523,6 +535,48 @@ export default function PurchasesPage() {
                 Cancel
               </Button>
               <Button type="submit">{user?.role === "admin" ? "Update Purchase" : "Submit Changes"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Trash2 className="h-5 w-5" />
+              <span>Delete Purchase</span>
+            </DialogTitle>
+            <DialogDescription>
+              {user?.role === "admin" ? "Delete purchase order" : "Submit purchase deletion for admin approval"}
+            </DialogDescription>
+          </DialogHeader>
+          {user?.role !== "admin" && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                Your deletion will be submitted for admin approval before being applied.
+              </AlertDescription>
+            </Alert>
+          )}
+          <form onSubmit={(e) => { e.preventDefault(); handleDeleteConfirm(); }} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="delete-reason">Reason for Deletion {user?.role !== "admin" && "*"}</Label>
+              <Textarea
+                id="delete-reason"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Explain why you're deleting this purchase..."
+                rows={3}
+                required={user?.role !== "admin"}
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="neutralOutline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">{user?.role === "admin" ? "Delete Purchase" : "Submit Deletion"}</Button>
             </div>
           </form>
         </DialogContent>

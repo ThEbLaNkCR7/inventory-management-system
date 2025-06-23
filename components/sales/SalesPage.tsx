@@ -32,7 +32,9 @@ export default function SalesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [editingSale, setEditingSale] = useState<any>(null)
+  const [deletingSale, setDeletingSale] = useState<any>(null)
   const [formData, setFormData] = useState({
     productId: "",
     client: "",
@@ -41,6 +43,7 @@ export default function SalesPage() {
     saleDate: new Date().toISOString().split("T")[0],
   })
   const [editReason, setEditReason] = useState("")
+  const [deleteReason, setDeleteReason] = useState("")
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
 
@@ -153,31 +156,40 @@ export default function SalesPage() {
   }
 
   const handleDelete = (sale: any) => {
-    const reason = prompt("Please provide a reason for deleting this sale:")
-    if (reason && reason.trim()) {
+    setDeletingSale(sale)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (deletingSale && deleteReason.trim()) {
       if (user?.role === "admin") {
         // Admin can delete directly
-        deleteSale(sale.id)
+        deleteSale(deletingSale.id)
         showAlert("Sale deleted successfully!")
       } else {
         // Submit for approval
         submitChange({
           type: "sale",
           action: "delete",
-          entityId: sale.id,
+          entityId: deletingSale.id,
           originalData: {
-            productName: sale.productName,
-            client: sale.client,
-            quantitySold: sale.quantitySold,
-            salePrice: sale.salePrice,
-            saleDate: sale.saleDate,
+            productName: deletingSale.productName,
+            client: deletingSale.client,
+            quantitySold: deletingSale.quantitySold,
+            salePrice: deletingSale.salePrice,
+            saleDate: deletingSale.saleDate,
           },
           proposedData: {},
           requestedBy: user?.email || "",
-          reason: reason,
+          reason: deleteReason,
         })
         showAlert("Sale deletion submitted for admin approval. You'll be notified once it's reviewed.")
       }
+      setIsDeleteDialogOpen(false)
+      setDeletingSale(null)
+      setDeleteReason("")
+    } else if (!deleteReason.trim()) {
+      showAlert("Please provide a reason for deleting this sale", false)
     }
   }
 
@@ -521,6 +533,48 @@ export default function SalesPage() {
                 Cancel
               </Button>
               <Button type="submit">{user?.role === "admin" ? "Update Sale" : "Submit Changes"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Trash2 className="h-5 w-5" />
+              <span>Delete Sale</span>
+            </DialogTitle>
+            <DialogDescription>
+              {user?.role === "admin" ? "Confirm sale deletion" : "Submit sale deletion for admin approval"}
+            </DialogDescription>
+          </DialogHeader>
+          {user?.role !== "admin" && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                Your changes will be submitted for admin approval before being applied.
+              </AlertDescription>
+            </Alert>
+          )}
+          <form onSubmit={(e) => { e.preventDefault(); handleDeleteConfirm() }} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="delete-reason">Reason for Deletion {user?.role !== "admin" && "*"}</Label>
+              <Textarea
+                id="delete-reason"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Explain why you're deleting this sale..."
+                rows={3}
+                required={user?.role !== "admin"}
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="neutralOutline" onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">{user?.role === "admin" ? "Delete Sale" : "Submit Deletion"}</Button>
             </div>
           </form>
         </DialogContent>

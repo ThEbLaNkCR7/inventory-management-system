@@ -3,7 +3,7 @@
 import type React from "react"
 import { Package } from "lucide-react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
@@ -24,7 +24,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Edit, Trash2, AlertTriangle, Clock } from "lucide-react"
+import { Plus, Search, Edit, Trash2, AlertTriangle, Clock, CheckCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function ProductsPage() {
   const { user } = useAuth()
@@ -33,7 +34,9 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [deletingProduct, setDeletingProduct] = useState<any>(null)
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [pendingAction, setPendingAction] = useState<{
     type: "create" | "update" | "delete"
@@ -50,6 +53,8 @@ export default function ProductsPage() {
     supplier: "",
     stockType: "new" as "new" | "old",
   })
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
+  const [alertMessage, setAlertMessage] = useState("")
   const [approvalReason, setApprovalReason] = useState("")
 
   const categories = [...new Set(products.map((p) => p.category))]
@@ -61,6 +66,16 @@ export default function ProductsPage() {
     const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
     return matchesSearch && matchesCategory
   })
+
+  // Auto-hide success alerts
+  useEffect(() => {
+    if (showSuccessAlert) {
+      const timer = setTimeout(() => {
+        setShowSuccessAlert(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [showSuccessAlert])
 
   const resetForm = () => {
     setFormData({
@@ -83,8 +98,12 @@ export default function ProductsPage() {
     if (user?.role === "admin") {
       if (editingProduct) {
         await updateProduct(editingProduct.id, formData)
+        setShowSuccessAlert(true)
+        setAlertMessage("Product updated successfully!")
       } else {
         await addProduct(formData)
+        setShowSuccessAlert(true)
+        setAlertMessage("Product added successfully!")
       }
       resetForm()
       setIsAddDialogOpen(false)
@@ -115,6 +134,8 @@ export default function ProductsPage() {
     setIsAddDialogOpen(false)
     setShowApprovalDialog(false)
     setPendingAction(null)
+    setShowSuccessAlert(true)
+    setAlertMessage("Product request submitted for approval!")
   }
 
   const handleEdit = (product: any) => {
@@ -132,26 +153,45 @@ export default function ProductsPage() {
     setIsAddDialogOpen(true)
   }
 
-  const handleDelete = async (product: any) => {
-    if (user?.role === "admin") {
-      if (confirm("Are you sure you want to delete this product?")) {
-        await deleteProduct(product.id)
+  const handleDelete = (product: any) => {
+    setDeletingProduct(product)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (deletingProduct) {
+      if (user?.role === "admin") {
+        await deleteProduct(deletingProduct.id)
+        setShowSuccessAlert(true)
+        setAlertMessage("Product deleted successfully!")
+      } else {
+        submitChange({
+          type: "product",
+          action: "delete",
+          entityId: deletingProduct.id,
+          originalData: deletingProduct,
+          proposedData: { deleted: true },
+          requestedBy: user?.email || "",
+          reason: `Request to delete product: ${deletingProduct.name}`,
+        })
+        setShowSuccessAlert(true)
+        setAlertMessage("Product deletion submitted for approval!")
       }
-    } else {
-      submitChange({
-        type: "product",
-        action: "delete",
-        entityId: product.id,
-        originalData: product,
-        proposedData: { deleted: true },
-        requestedBy: user?.email || "",
-        reason: `Request to delete product: ${product.name}`,
-      })
+      setIsDeleteDialogOpen(false)
+      setDeletingProduct(null)
     }
   }
 
   return (
     <div className="space-y-8 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      {/* Success/Info Alert */}
+      {showSuccessAlert && (
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+          <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="relative">
         <div className="space-y-2">
           <h1 className="section-title">
@@ -496,6 +536,62 @@ export default function ProductsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Product Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Trash2 className="h-5 w-5" />
+              <span>Delete Product</span>
+            </DialogTitle>
+            <DialogDescription>
+              {user?.role === "admin" ? "Confirm product deletion" : "Submit product deletion for admin approval"}
+            </DialogDescription>
+          </DialogHeader>
+          {user?.role !== "admin" && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                Your deletion will be submitted for admin approval before being applied.
+              </AlertDescription>
+            </Alert>
+          )}
+          <div className="space-y-4">
+            <div className="text-center py-4">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
+                <svg className="h-8 w-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300">
+                Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-gray-100">{deletingProduct?.name}</span>? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex justify-center space-x-3">
+              <Button 
+                type="button" 
+                variant="neutralOutline" 
+                onClick={() => {
+                  setIsDeleteDialogOpen(false)
+                  setDeletingProduct(null)
+                }}
+                className="px-6"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="button" 
+                variant="destructive" 
+                onClick={handleDeleteConfirm}
+                className="px-6"
+              >
+                {user?.role === "admin" ? "Delete Product" : "Submit Deletion"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
