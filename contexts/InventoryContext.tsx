@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useEffect } from "react"
 
 export interface Product {
   id: string
@@ -124,139 +124,231 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const [clients, setClients] = useState<Client[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
 
-  const addProduct = (product: Omit<Product, "id" | "createdAt">) => {
-    const newProduct: Product = {
-      ...product,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString().split("T")[0],
-    }
-    setProducts((prev) => [...prev, newProduct])
-  }
-
-  const updateProduct = (id: string, updatedProduct: Partial<Product>) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updatedProduct } : p)))
-  }
-
-  const deleteProduct = (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id))
-  }
-
-  const addPurchase = (purchase: Omit<Purchase, "id">) => {
-    const newPurchase: Purchase = {
-      ...purchase,
-      id: Date.now().toString(),
-    }
-    setPurchases((prev) => [...prev, newPurchase])
-
-    // Update stock
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === purchase.productId ? { ...p, stockQuantity: p.stockQuantity + purchase.quantityPurchased } : p,
-      ),
-    )
-  }
-
-  const updatePurchase = (id: string, updatedPurchase: Partial<Purchase>) => {
-    const oldPurchase = purchases.find((p) => p.id === id)
-    if (oldPurchase) {
-      setPurchases((prev) => prev.map((p) => (p.id === id ? { ...p, ...updatedPurchase } : p)))
-
-      // Update stock if quantity changed
-      if (updatedPurchase.quantityPurchased && updatedPurchase.quantityPurchased !== oldPurchase.quantityPurchased) {
-        const difference = updatedPurchase.quantityPurchased - oldPurchase.quantityPurchased
-        setProducts((prev) =>
-          prev.map((p) => (p.id === oldPurchase.productId ? { ...p, stockQuantity: p.stockQuantity + difference } : p)),
-        )
+  // Fetch all entities from API on mount
+  useEffect(() => {
+    async function fetchAll() {
+      try {
+        const [productsRes, purchasesRes, salesRes, clientsRes, suppliersRes] = await Promise.all([
+          fetch("/api/products"),
+          fetch("/api/purchases"),
+          fetch("/api/sales"),
+          fetch("/api/clients"),
+          fetch("/api/suppliers"),
+        ])
+        const productsData = await productsRes.json()
+        const purchasesData = await purchasesRes.json()
+        const salesData = await salesRes.json()
+        const clientsData = await clientsRes.json()
+        const suppliersData = await suppliersRes.json()
+        setProducts(productsData.products || [])
+        setPurchases(purchasesData.purchases || [])
+        setSales(salesData.sales || [])
+        setClients(clientsData.clients || [])
+        setSuppliers(suppliersData.suppliers || [])
+      } catch (error) {
+        console.error("Failed to fetch inventory data:", error)
       }
     }
+    fetchAll()
+  }, [])
+
+  // Add product via API
+  const addProduct = async (product: Omit<Product, "id" | "createdAt">) => {
+    try {
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(product),
+      })
+      if (!res.ok) throw new Error("Failed to add product")
+      const newProduct = await res.json()
+      setProducts((prev) => [...prev, { ...newProduct, id: newProduct._id || newProduct.id }])
+    } catch (error) {
+      console.error("Add product error:", error)
+    }
   }
 
-  const deletePurchase = (id: string) => {
-    const purchase = purchases.find((p) => p.id === id)
-    if (purchase) {
+  // Update product via API
+  const updateProduct = async (id: string, updatedProduct: Partial<Product>) => {
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedProduct),
+      })
+      if (!res.ok) throw new Error("Failed to update product")
+      const product = await res.json()
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...product, id: product._id || product.id } : p)))
+    } catch (error) {
+      console.error("Update product error:", error)
+    }
+  }
+
+  // Delete product via API (soft delete)
+  const deleteProduct = async (id: string) => {
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete product")
+      setProducts((prev) => prev.filter((p) => p.id !== id))
+    } catch (error) {
+      console.error("Delete product error:", error)
+    }
+  }
+
+  // Purchases
+  const addPurchase = async (purchase: Omit<Purchase, "id">) => {
+    try {
+      const res = await fetch("/api/purchases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(purchase),
+      })
+      if (!res.ok) throw new Error("Failed to add purchase")
+      const newPurchase = await res.json()
+      setPurchases((prev) => [...prev, { ...newPurchase, id: newPurchase._id || newPurchase.id }])
+    } catch (error) {
+      console.error("Add purchase error:", error)
+    }
+  }
+  const updatePurchase = async (id: string, updatedPurchase: Partial<Purchase>) => {
+    try {
+      const res = await fetch(`/api/purchases/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedPurchase),
+      })
+      if (!res.ok) throw new Error("Failed to update purchase")
+      const purchase = await res.json()
+      setPurchases((prev) => prev.map((p) => (p.id === id ? purchase : p)))
+    } catch (error) {
+      console.error("Update purchase error:", error)
+    }
+  }
+  const deletePurchase = async (id: string) => {
+    try {
+      const res = await fetch(`/api/purchases/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete purchase")
       setPurchases((prev) => prev.filter((p) => p.id !== id))
-
-      // Revert stock
-      setProducts((prev) =>
-        prev.map((p) =>
-          p.id === purchase.productId ? { ...p, stockQuantity: p.stockQuantity - purchase.quantityPurchased } : p,
-        ),
-      )
+    } catch (error) {
+      console.error("Delete purchase error:", error)
     }
   }
 
-  const addSale = (sale: Omit<Sale, "id">) => {
-    const newSale: Sale = {
-      ...sale,
-      id: Date.now().toString(),
-    }
-    setSales((prev) => [...prev, newSale])
-
-    // Update stock
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === sale.productId ? { ...p, stockQuantity: Math.max(0, p.stockQuantity - sale.quantitySold) } : p,
-      ),
-    )
-  }
-
-  const updateSale = (id: string, updatedSale: Partial<Sale>) => {
-    const oldSale = sales.find((s) => s.id === id)
-    if (oldSale) {
-      setSales((prev) => prev.map((s) => (s.id === id ? { ...s, ...updatedSale } : s)))
-
-      // Update stock if quantity changed
-      if (updatedSale.quantitySold && updatedSale.quantitySold !== oldSale.quantitySold) {
-        const difference = oldSale.quantitySold - updatedSale.quantitySold
-        setProducts((prev) =>
-          prev.map((p) => (p.id === oldSale.productId ? { ...p, stockQuantity: p.stockQuantity + difference } : p)),
-        )
-      }
+  // Sales
+  const addSale = async (sale: Omit<Sale, "id">) => {
+    try {
+      const res = await fetch("/api/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sale),
+      })
+      if (!res.ok) throw new Error("Failed to add sale")
+      const newSale = await res.json()
+      setSales((prev) => [...prev, { ...newSale, id: newSale._id || newSale.id }])
+    } catch (error) {
+      console.error("Add sale error:", error)
     }
   }
-
-  const deleteSale = (id: string) => {
-    const sale = sales.find((s) => s.id === id)
-    if (sale) {
+  const updateSale = async (id: string, updatedSale: Partial<Sale>) => {
+    try {
+      const res = await fetch(`/api/sales/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedSale),
+      })
+      if (!res.ok) throw new Error("Failed to update sale")
+      const sale = await res.json()
+      setSales((prev) => prev.map((s) => (s.id === id ? sale : s)))
+    } catch (error) {
+      console.error("Update sale error:", error)
+    }
+  }
+  const deleteSale = async (id: string) => {
+    try {
+      const res = await fetch(`/api/sales/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete sale")
       setSales((prev) => prev.filter((s) => s.id !== id))
-
-      // Revert stock
-      setProducts((prev) =>
-        prev.map((p) => (p.id === sale.productId ? { ...p, stockQuantity: p.stockQuantity + sale.quantitySold } : p)),
-      )
+    } catch (error) {
+      console.error("Delete sale error:", error)
     }
   }
 
-  const addClient = (client: Omit<Client, "id">) => {
-    const newClient: Client = {
-      ...client,
-      id: Date.now().toString(),
+  // Clients
+  const addClient = async (client: Omit<Client, "id">) => {
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(client),
+      })
+      if (!res.ok) throw new Error("Failed to add client")
+      const newClient = await res.json()
+      setClients((prev) => [...prev, { ...newClient, id: newClient._id || newClient.id }])
+    } catch (error) {
+      console.error("Add client error:", error)
     }
-    setClients((prev) => [...prev, newClient])
   }
-
-  const updateClient = (id: string, updatedClient: Partial<Client>) => {
-    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...updatedClient } : c)))
-  }
-
-  const deleteClient = (id: string) => {
-    setClients((prev) => prev.filter((c) => c.id !== id))
-  }
-
-  const addSupplier = (supplier: Omit<Supplier, "id">) => {
-    const newSupplier: Supplier = {
-      ...supplier,
-      id: Date.now().toString(),
+  const updateClient = async (id: string, updatedClient: Partial<Client>) => {
+    try {
+      const res = await fetch(`/api/clients/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedClient),
+      })
+      if (!res.ok) throw new Error("Failed to update client")
+      const client = await res.json()
+      setClients((prev) => prev.map((c) => (c.id === id ? client : c)))
+    } catch (error) {
+      console.error("Update client error:", error)
     }
-    setSuppliers((prev) => [...prev, newSupplier])
+  }
+  const deleteClient = async (id: string) => {
+    try {
+      const res = await fetch(`/api/clients/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete client")
+      setClients((prev) => prev.filter((c) => c.id !== id))
+    } catch (error) {
+      console.error("Delete client error:", error)
+    }
   }
 
-  const updateSupplier = (id: string, updatedSupplier: Partial<Supplier>) => {
-    setSuppliers((prev) => prev.map((s) => (s.id === id ? { ...s, ...updatedSupplier } : s)))
+  // Suppliers
+  const addSupplier = async (supplier: Omit<Supplier, "id">) => {
+    try {
+      const res = await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(supplier),
+      })
+      if (!res.ok) throw new Error("Failed to add supplier")
+      const newSupplier = await res.json()
+      setSuppliers((prev) => [...prev, { ...newSupplier, id: newSupplier._id || newSupplier.id }])
+    } catch (error) {
+      console.error("Add supplier error:", error)
+    }
   }
-
-  const deleteSupplier = (id: string) => {
-    setSuppliers((prev) => prev.filter((s) => s.id !== id))
+  const updateSupplier = async (id: string, updatedSupplier: Partial<Supplier>) => {
+    try {
+      const res = await fetch(`/api/suppliers/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedSupplier),
+      })
+      if (!res.ok) throw new Error("Failed to update supplier")
+      const supplier = await res.json()
+      setSuppliers((prev) => prev.map((s) => (s.id === id ? supplier : s)))
+    } catch (error) {
+      console.error("Update supplier error:", error)
+    }
+  }
+  const deleteSupplier = async (id: string) => {
+    try {
+      const res = await fetch(`/api/suppliers/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete supplier")
+      setSuppliers((prev) => prev.filter((s) => s.id !== id))
+    } catch (error) {
+      console.error("Delete supplier error:", error)
+    }
   }
 
   const getLowStockProducts = () => {

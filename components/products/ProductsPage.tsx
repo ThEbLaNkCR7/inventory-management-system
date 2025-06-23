@@ -77,20 +77,18 @@ export default function ProductsPage() {
     setApprovalReason("")
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (user?.role === "admin") {
-      // Admin can make changes directly
       if (editingProduct) {
-        updateProduct(editingProduct.id, formData)
+        await updateProduct(editingProduct.id, formData)
       } else {
-        addProduct(formData)
+        await addProduct(formData)
       }
       resetForm()
       setIsAddDialogOpen(false)
     } else {
-      // Regular users need approval
       setPendingAction({
         type: editingProduct ? "update" : "create",
         data: formData,
@@ -134,13 +132,12 @@ export default function ProductsPage() {
     setIsAddDialogOpen(true)
   }
 
-  const handleDelete = (product: any) => {
+  const handleDelete = async (product: any) => {
     if (user?.role === "admin") {
       if (confirm("Are you sure you want to delete this product?")) {
-        deleteProduct(product.id)
+        await deleteProduct(product.id)
       }
     } else {
-      // Regular users submit delete request for approval
       submitChange({
         type: "product",
         action: "delete",

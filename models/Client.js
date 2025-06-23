@@ -1,6 +1,6 @@
-const mongoose = require("mongoose")
+import mongoose from "mongoose"
 
-const supplierSchema = new mongoose.Schema(
+const clientSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -34,20 +34,18 @@ const supplierSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    paymentTerms: {
-      type: String,
-      enum: ["net_15", "net_30", "net_45", "net_60", "cash_on_delivery"],
-      default: "net_30",
+    creditLimit: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    currentBalance: {
+      type: Number,
+      default: 0,
     },
     isActive: {
       type: Boolean,
       default: true,
-    },
-    rating: {
-      type: Number,
-      min: 1,
-      max: 5,
-      default: 3,
     },
     notes: {
       type: String,
@@ -60,7 +58,7 @@ const supplierSchema = new mongoose.Schema(
 )
 
 // Index for better search performance
-supplierSchema.index({ name: "text", company: "text", email: "text" })
-supplierSchema.index({ company: 1 })
+clientSchema.index({ name: "text", company: "text", email: "text" })
+clientSchema.index({ company: 1 })
 
-module.exports = mongoose.model("Supplier", supplierSchema)
+export default mongoose.models.Client || mongoose.model("Client", clientSchema)
