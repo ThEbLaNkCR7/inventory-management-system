@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
@@ -23,12 +21,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Plus, Search, Edit, Trash2, CheckCircle, AlertTriangle, Clock } from "lucide-react"
+import { Plus, Search, Edit, Trash2, CheckCircle, AlertTriangle, Clock, Loader2 } from "lucide-react"
+import { NepaliDatePicker } from "@/components/ui/nepali-date-picker"
+import { formatNepaliDateForTable } from "@/lib/utils"
+import { useToast } from "@/components/ui/use-toast"
+import { Progress } from "@/components/ui/progress"
 
 export default function SalesPage() {
   const { user } = useAuth()
   const { products, sales, clients, addSale, updateSale, deleteSale } = useInventory()
   const { submitChange } = useApproval()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -46,6 +49,10 @@ export default function SalesPage() {
   const [deleteReason, setDeleteReason] = useState("")
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
+  const [totalSteps, setTotalSteps] = useState(0)
 
   const filteredSales = sales.filter(
     (sale) =>
@@ -70,34 +77,56 @@ export default function SalesPage() {
     setTimeout(() => setShowSuccessAlert(false), 5000)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const updateProgress = (step: string, current: number, total: number) => {
+    setCurrentStep(step)
+    setProgress((current / total) * 100)
+    setTotalSteps(total)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const product = products.find((p) => p.id === formData.productId)
-    if (product && product.stockQuantity >= formData.quantitySold) {
-      if (user?.role === "admin") {
-        addSale({
-          ...formData,
-          productName: product.name,
-        })
-        showAlert("Sale recorded successfully!")
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      updateProgress("Validating sale data...", 1, 5)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const product = products.find((p) => p.id === formData.productId)
+      if (product && product.stockQuantity >= formData.quantitySold) {
+        updateProgress("Checking stock availability...", 2, 5)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        if (user?.role === "admin") {
+          updateProgress("Recording sale transaction...", 3, 5)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Updating inventory levels...", 4, 5)
+          await addSale({ ...formData, productName: product.name })
+          
+          updateProgress("Operation completed!", 5, 5)
+          await new Promise(resolve => setTimeout(resolve, 300))
+          
+          toast({ title: "Success", description: "Sale recorded successfully!", })
+        } else {
+          updateProgress("Preparing approval request...", 3, 4)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Submitting for approval...", 4, 4)
+          submitChange({ type: "sale", action: "create", proposedData: { ...formData, productName: product.name }, requestedBy: user?.email || "", reason: editReason || "New sale record", })
+          toast({ title: "Submitted", description: "Sale submitted for admin approval." })
+        }
+        resetForm()
+        setIsAddDialogOpen(false)
       } else {
-        // Submit for approval
-        submitChange({
-          type: "sale",
-          action: "create",
-          proposedData: {
-            ...formData,
-            productName: product.name,
-          },
-          requestedBy: user?.email || "",
-          reason: editReason || "New sale record",
-        })
-        showAlert("Sale submitted for admin approval. You'll be notified once it's reviewed.")
+        toast({ title: "Error", description: "Insufficient stock for this sale.", variant: "destructive" })
       }
-      resetForm()
-      setIsAddDialogOpen(false)
-    } else {
-      alert("Insufficient stock for this sale")
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to record sale.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -114,44 +143,51 @@ export default function SalesPage() {
     setIsEditDialogOpen(true)
   }
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const product = products.find((p) => p.id === formData.productId)
-    if (product && editingSale && editReason.trim()) {
-      if (user?.role === "admin") {
-        // Admin can edit directly
-        updateSale(editingSale.id, {
-          ...formData,
-          productName: product.name,
-        })
-        showAlert("Sale updated successfully!")
-      } else {
-        // Submit for approval
-        submitChange({
-          type: "sale",
-          action: "update",
-          entityId: editingSale.id,
-          originalData: {
-            productName: editingSale.productName,
-            client: editingSale.client,
-            quantitySold: editingSale.quantitySold,
-            salePrice: editingSale.salePrice,
-            saleDate: editingSale.saleDate,
-          },
-          proposedData: {
-            ...formData,
-            productName: product.name,
-          },
-          requestedBy: user?.email || "",
-          reason: editReason,
-        })
-        showAlert("Sale changes submitted for admin approval. You'll be notified once it's reviewed.")
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      updateProgress("Validating changes...", 1, 5)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const product = products.find((p) => p.id === formData.productId)
+      if (product && editingSale && (user?.role === "admin" || editReason.trim())) {
+        updateProgress("Checking stock availability...", 2, 5)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        if (user?.role === "admin") {
+          updateProgress("Updating sale record...", 3, 5)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Adjusting inventory...", 4, 5)
+          await updateSale(editingSale.id, { ...formData, productName: product.name })
+          
+          updateProgress("Operation completed!", 5, 5)
+          await new Promise(resolve => setTimeout(resolve, 300))
+          
+          toast({ title: "Success", description: "Sale updated successfully!", })
+        } else {
+          updateProgress("Preparing approval request...", 3, 4)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Submitting for approval...", 4, 4)
+          submitChange({ type: "sale", action: "update", entityId: editingSale.id, originalData: { productName: editingSale.productName, client: editingSale.client, quantitySold: editingSale.quantitySold, salePrice: editingSale.salePrice, saleDate: editingSale.saleDate, }, proposedData: { ...formData, productName: product.name }, requestedBy: user?.email || "", reason: editReason, })
+          toast({ title: "Submitted", description: "Sale changes submitted for admin approval." })
+        }
+        resetForm()
+        setIsEditDialogOpen(false)
+        setEditingSale(null)
+      } else if (user?.role !== "admin" && !editReason.trim()) {
+        toast({ title: "Error", description: "Please provide a reason for the changes.", variant: "destructive" })
       }
-      resetForm()
-      setIsEditDialogOpen(false)
-      setEditingSale(null)
-    } else if (!editReason.trim()) {
-      alert("Please provide a reason for the changes")
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to update sale.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -160,41 +196,76 @@ export default function SalesPage() {
     setIsDeleteDialogOpen(true)
   }
 
-  const handleDeleteConfirm = () => {
-    if (deletingSale && deleteReason.trim()) {
-      if (user?.role === "admin") {
-        // Admin can delete directly
-        deleteSale(deletingSale.id)
-        showAlert("Sale deleted successfully!")
-      } else {
-        // Submit for approval
-        submitChange({
-          type: "sale",
-          action: "delete",
-          entityId: deletingSale.id,
-          originalData: {
-            productName: deletingSale.productName,
-            client: deletingSale.client,
-            quantitySold: deletingSale.quantitySold,
-            salePrice: deletingSale.salePrice,
-            saleDate: deletingSale.saleDate,
-          },
-          proposedData: {},
-          requestedBy: user?.email || "",
-          reason: deleteReason,
-        })
-        showAlert("Sale deletion submitted for admin approval. You'll be notified once it's reviewed.")
+  const handleDeleteConfirm = async () => {
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      updateProgress("Validating deletion...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      if (deletingSale && (user?.role === "admin" || deleteReason.trim())) {
+        if (user?.role === "admin") {
+          updateProgress("Removing sale record...", 2, 4)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Adjusting inventory...", 3, 4)
+          await deleteSale(deletingSale.id)
+          
+          updateProgress("Operation completed!", 4, 4)
+          await new Promise(resolve => setTimeout(resolve, 300))
+          
+          toast({ title: "Success", description: "Sale deleted successfully!", })
+        } else {
+          updateProgress("Preparing deletion request...", 2, 3)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Submitting for approval...", 3, 3)
+          submitChange({ type: "sale", action: "delete", entityId: deletingSale.id, originalData: { productName: deletingSale.productName, client: deletingSale.client, quantitySold: deletingSale.quantitySold, salePrice: deletingSale.salePrice, saleDate: deletingSale.saleDate, }, proposedData: {}, requestedBy: user?.email || "", reason: deleteReason, })
+          toast({ title: "Submitted", description: "Sale deletion submitted for admin approval." })
+        }
+        setIsDeleteDialogOpen(false)
+        setDeletingSale(null)
+        setDeleteReason("")
+      } else if (user?.role !== "admin" && !deleteReason.trim()) {
+        toast({ title: "Error", description: "Please provide a reason for deleting this sale.", variant: "destructive" })
       }
-      setIsDeleteDialogOpen(false)
-      setDeletingSale(null)
-      setDeleteReason("")
-    } else if (!deleteReason.trim()) {
-      showAlert("Please provide a reason for deleting this sale", false)
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to delete sale.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
   return (
     <div className="space-y-6 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Processing Sale...
+              </h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>{currentStep}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              
+              <Progress value={progress} className="h-2" />
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Step {Math.ceil((progress / 100) * totalSteps)} of {totalSteps}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Success/Info Alert */}
       {showSuccessAlert && (
         <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
@@ -311,12 +382,10 @@ export default function SalesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="date">Sale Date *</Label>
-                  <Input
-                    id="date"
-                    type="date"
+                  <NepaliDatePicker
                     value={formData.saleDate}
-                    onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
-                    required
+                    onChange={(value) => setFormData({ ...formData, saleDate: value })}
+                    placeholder="Select sale date"
                   />
                 </div>
                 <div className="space-y-2">
@@ -389,7 +458,7 @@ export default function SalesPage() {
                     <TableCell className="font-medium text-green-600">
                       Rs {(sale.quantitySold * sale.salePrice).toFixed(2)}
                     </TableCell>
-                    <TableCell>{new Date(sale.saleDate).toLocaleDateString("en-IN")}</TableCell>
+                    <TableCell>{formatNepaliDateForTable(sale.saleDate)}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button
@@ -509,12 +578,10 @@ export default function SalesPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-date">Sale Date *</Label>
-              <Input
-                id="edit-date"
-                type="date"
+              <NepaliDatePicker
                 value={formData.saleDate}
-                onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
-                required
+                onChange={(value) => setFormData({ ...formData, saleDate: value })}
+                placeholder="Select sale date"
               />
             </div>
             <div className="space-y-2">

@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { formatNepaliDateForTable } from "@/lib/utils"
 
 export default function ClientsPage() {
   const { user } = useAuth()
@@ -493,7 +494,7 @@ export default function ClientsPage() {
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+                        {formatNepaliDateForTable(new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString())}
                       </span>
                     </TableCell>
                     <TableCell>

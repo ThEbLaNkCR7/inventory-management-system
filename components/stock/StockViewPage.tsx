@@ -17,16 +17,19 @@ export default function StockViewPage() {
   const { batches } = useBatch()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedBatch, setSelectedBatch] = useState<string>("all")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
 
   const newStock = getNewStock()
   const oldStock = getOldStock()
 
   const filterProducts = (productList: any[]) => {
-    let filtered = productList.filter(
-      (product) =>
+    let filtered = productList.filter((product) => {
+      const matchesSearch =
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
+        product.hsCode.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
+      return matchesSearch && matchesCategory
+    })
 
     if (selectedBatch !== "all") {
       filtered = filtered.filter((product) => product.batchId === selectedBatch)
@@ -151,7 +154,7 @@ export default function StockViewPage() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">{product.description}</p>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                        <TableCell className="font-mono text-sm">{product.hsCode}</TableCell>
                         <TableCell>
                           <Badge variant="secondary">{product.category}</Badge>
                         </TableCell>
@@ -214,7 +217,7 @@ export default function StockViewPage() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">{product.description}</p>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                        <TableCell className="font-mono text-sm">{product.hsCode}</TableCell>
                         <TableCell>
                           <Badge variant="secondary">{product.category}</Badge>
                         </TableCell>

@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Package, ShoppingCart, TrendingUp, AlertTriangle, DollarSign, Users, Truck, Calendar, BarChart3, Clock, CheckCircle, XCircle } from "lucide-react"
+import { formatNepaliDateForTable } from "@/lib/utils"
 
 export default function DashboardHome() {
   const { user } = useAuth()
@@ -345,7 +346,7 @@ export default function DashboardHome() {
                   >
                     <div>
                       <p className="font-medium text-gray-900 dark:text-gray-200">{product.name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">SKU: {product.sku}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">HS Code: {product.hsCode}</p>
                     </div>
                     <Badge variant="destructive" className="bg-amber-500 text-white">
                       {product.stockQuantity} left
@@ -389,7 +390,7 @@ export default function DashboardHome() {
                       Rs {(sale.quantitySold * sale.salePrice).toLocaleString()}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {new Date(sale.saleDate).toLocaleDateString("en-IN")}
+                      {formatNepaliDateForTable(sale.saleDate)}
                     </p>
                   </div>
                 </div>
@@ -426,7 +427,7 @@ export default function DashboardHome() {
                       Rs {(purchase.quantityPurchased * purchase.purchasePrice).toLocaleString()}
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {new Date(purchase.purchaseDate).toLocaleDateString("en-IN")}
+                      {formatNepaliDateForTable(purchase.purchaseDate)}
                     </p>
                   </div>
                 </div>

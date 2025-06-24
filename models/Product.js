@@ -7,7 +7,7 @@ const productSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    sku: {
+    hsCode: {
       type: String,
       required: true,
       unique: true,
@@ -71,7 +71,7 @@ const productSchema = new mongoose.Schema(
 )
 
 // Index for better search performance
-productSchema.index({ name: "text", sku: "text", description: "text" })
+productSchema.index({ name: "text", hsCode: "text", description: "text" })
 productSchema.index({ category: 1 })
 productSchema.index({ stockQuantity: 1 })
 

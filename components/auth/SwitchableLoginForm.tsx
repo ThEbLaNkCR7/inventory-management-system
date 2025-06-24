@@ -23,8 +23,23 @@ export default function SwitchableLoginForm() {
     setLoading(true)
     setError("")
 
+    // Basic validation
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter both email and password")
+      setLoading(false)
+      return
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      setError("Please enter a valid email address")
+      setLoading(false)
+      return
+    }
+
     try {
-      const success = await login(email, password)
+      const success = await login(email.trim(), password)
       if (success) {
         // Store the system type in localStorage
         localStorage.setItem("currentSystem", system)
@@ -36,10 +51,11 @@ export default function SwitchableLoginForm() {
           router.push("/employee-dashboard")
         }
       } else {
-        setError("Invalid credentials. Please try again.")
+        setError("Invalid credentials. Please check your email and password.")
       }
     } catch (err) {
-      setError("An error occurred. Please try again.")
+      console.error("Login error:", err)
+      setError("An error occurred during login. Please try again.")
     } finally {
       setLoading(false)
     }

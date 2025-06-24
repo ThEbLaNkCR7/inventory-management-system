@@ -404,7 +404,7 @@ export default function ReportsPage() {
                     </div>
                     <div>
                       <p className="font-medium dark:text-gray-200">{product.name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">SKU: {product.sku}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">HS Code: {product.hsCode}</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -438,7 +438,7 @@ export default function ReportsPage() {
                 >
                   <div>
                     <p className="font-medium dark:text-gray-200">{product.name}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">SKU: {product.sku}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">HS Code: {product.hsCode}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Category: {product.category}</p>
                   </div>
                   <div className="text-right">

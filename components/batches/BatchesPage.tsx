@@ -96,7 +96,7 @@ export default function BatchesPage() {
 
     addBatch({
       ...formData,
-      items: batchItems,
+      items: batchItems,  
       totalItems,
       totalValue,
     })

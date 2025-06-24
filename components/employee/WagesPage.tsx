@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DollarSign, Plus, Search, Edit, Trash2, Clock, User, Calendar, TrendingUp } from "lucide-react"
+import { formatNepaliDateForTable } from "@/lib/utils"
 
 interface WageRecord {
   id: string
@@ -157,12 +158,7 @@ export default function WagesPage() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    return formatNepaliDateForTable(dateString)
   }
 
   const totalWages = filteredRecords.reduce((sum, record) => sum + record.totalWage, 0)

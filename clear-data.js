@@ -1,30 +1,29 @@
-// Clear Data Script for Deployment
-// Run this script in the browser console to clear all local data
+// Utility script to clear all local data for testing
+// Run this in the browser console or as a Node.js script
 
-console.log('🧹 Clearing all local data for deployment...')
+function clearAllLocalData() {
+  if (typeof window !== 'undefined') {
+    // Clear all localStorage items
+    localStorage.clear()
+    
+    // Clear specific items that might be used
+    localStorage.removeItem('user')
+    localStorage.removeItem('currentSystem')
+    localStorage.removeItem('sidebarOpen')
+    localStorage.removeItem('employeeSidebarOpen')
+    localStorage.removeItem('theme')
+    
+    // Clear any sessionStorage if used
+    sessionStorage.clear()
+    
+    console.log('All local data cleared successfully')
+  }
+}
 
-// Clear all localStorage
-localStorage.clear()
+// Clear all data
+clearAllLocalData()
 
-// Clear specific items
-localStorage.removeItem('user')
-localStorage.removeItem('currentSystem')
-localStorage.removeItem('sidebarOpen')
-localStorage.removeItem('employeeSidebarOpen')
-localStorage.removeItem('theme')
-
-// Clear sessionStorage
-sessionStorage.clear()
-
-// Clear any cookies
-document.cookie.split(";").forEach(function(c) { 
-  document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-})
-
-console.log('✅ All local data cleared successfully!')
-console.log('🔄 Refreshing page...')
-
-// Reload the page
-setTimeout(() => {
-  window.location.reload()
-}, 1000) 
+// If running in Node.js environment
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { clearAllLocalData }
+} 

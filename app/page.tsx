@@ -3,6 +3,7 @@
 import { useAuth } from "@/contexts/AuthContext"
 import SwitchableLoginForm from "@/components/auth/SwitchableLoginForm"
 import Dashboard from "@/components/Dashboard"
+import ProtectedRoute from "@/components/auth/ProtectedRoute"
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -15,5 +16,15 @@ export default function Home() {
     )
   }
 
-  return <div className="min-h-screen bg-gray-50">{user ? <Dashboard /> : <SwitchableLoginForm />}</div>
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {user ? (
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      ) : (
+        <SwitchableLoginForm />
+      )}
+    </div>
+  )
 }

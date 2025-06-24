@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import React, { useState } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
@@ -23,12 +21,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Plus, Search, Edit, Trash2, CheckCircle, AlertTriangle, Clock } from "lucide-react"
+import { Plus, Search, Edit, Trash2, CheckCircle, AlertTriangle, Clock, Loader2 } from "lucide-react"
+import { NepaliDatePicker } from "@/components/ui/nepali-date-picker"
+import { formatNepaliDateForTable } from "@/lib/utils"
+import { useToast } from "@/components/ui/use-toast"
+import { Progress } from "@/components/ui/progress"
 
 export default function PurchasesPage() {
   const { user } = useAuth()
   const { products, purchases, suppliers, addPurchase, updatePurchase, deletePurchase } = useInventory()
   const { submitChange } = useApproval()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -46,6 +49,10 @@ export default function PurchasesPage() {
   const [deleteReason, setDeleteReason] = useState("")
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
+  const [totalSteps, setTotalSteps] = useState(0)
 
   const filteredPurchases = purchases.filter(
     (purchase) =>
@@ -70,32 +77,54 @@ export default function PurchasesPage() {
     setTimeout(() => setShowSuccessAlert(false), 5000)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const updateProgress = (step: string, current: number, total: number) => {
+    setCurrentStep(step)
+    setProgress((current / total) * 100)
+    setTotalSteps(total)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const product = products.find((p) => p.id === formData.productId)
-    if (product) {
-      if (user?.role === "admin") {
-        addPurchase({
-          ...formData,
-          productName: product.name,
-        })
-        showAlert("Purchase recorded successfully!")
-      } else {
-        // Submit for approval
-        submitChange({
-          type: "purchase",
-          action: "create",
-          proposedData: {
-            ...formData,
-            productName: product.name,
-          },
-          requestedBy: user?.email || "",
-          reason: editReason || "New purchase record",
-        })
-        showAlert("Purchase submitted for admin approval. You'll be notified once it's reviewed.")
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      updateProgress("Validating purchase data...", 1, 5)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const product = products.find((p) => p.id === formData.productId)
+      if (product) {
+        updateProgress("Checking product availability...", 2, 5)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        if (user?.role === "admin") {
+          updateProgress("Recording purchase transaction...", 3, 5)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Updating inventory levels...", 4, 5)
+          await addPurchase({ ...formData, productName: product.name })
+          
+          updateProgress("Operation completed!", 5, 5)
+          await new Promise(resolve => setTimeout(resolve, 300))
+          
+          toast({ title: "Success", description: "Purchase recorded successfully!", })
+        } else {
+          updateProgress("Preparing approval request...", 3, 4)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Submitting for approval...", 4, 4)
+          submitChange({ type: "purchase", action: "create", proposedData: { ...formData, productName: product.name }, requestedBy: user?.email || "", reason: editReason || "New purchase record", })
+          toast({ title: "Submitted", description: "Purchase submitted for admin approval." })
+        }
+        resetForm()
+        setIsAddDialogOpen(false)
       }
-      resetForm()
-      setIsAddDialogOpen(false)
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to record purchase.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -112,44 +141,51 @@ export default function PurchasesPage() {
     setIsEditDialogOpen(true)
   }
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const product = products.find((p) => p.id === formData.productId)
-    if (product && editingPurchase && editReason.trim()) {
-      if (user?.role === "admin") {
-        // Admin can edit directly
-        updatePurchase(editingPurchase.id, {
-          ...formData,
-          productName: product.name,
-        })
-        showAlert("Purchase updated successfully!")
-      } else {
-        // Submit for approval
-        submitChange({
-          type: "purchase",
-          action: "update",
-          entityId: editingPurchase.id,
-          originalData: {
-            productName: editingPurchase.productName,
-            supplier: editingPurchase.supplier,
-            quantityPurchased: editingPurchase.quantityPurchased,
-            purchasePrice: editingPurchase.purchasePrice,
-            purchaseDate: editingPurchase.purchaseDate,
-          },
-          proposedData: {
-            ...formData,
-            productName: product.name,
-          },
-          requestedBy: user?.email || "",
-          reason: editReason,
-        })
-        showAlert("Purchase changes submitted for admin approval. You'll be notified once it's reviewed.")
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      updateProgress("Validating changes...", 1, 5)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const product = products.find((p) => p.id === formData.productId)
+      if (product && editingPurchase && (user?.role === "admin" || editReason.trim())) {
+        updateProgress("Checking product availability...", 2, 5)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        if (user?.role === "admin") {
+          updateProgress("Updating purchase record...", 3, 5)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Adjusting inventory...", 4, 5)
+          await updatePurchase(editingPurchase.id, { ...formData, productName: product.name })
+          
+          updateProgress("Operation completed!", 5, 5)
+          await new Promise(resolve => setTimeout(resolve, 300))
+          
+          toast({ title: "Success", description: "Purchase updated successfully!", })
+        } else {
+          updateProgress("Preparing approval request...", 3, 4)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Submitting for approval...", 4, 4)
+          submitChange({ type: "purchase", action: "update", entityId: editingPurchase.id, originalData: { productName: editingPurchase.productName, supplier: editingPurchase.supplier, quantityPurchased: editingPurchase.quantityPurchased, purchasePrice: editingPurchase.purchasePrice, purchaseDate: editingPurchase.purchaseDate, }, proposedData: { ...formData, productName: product.name }, requestedBy: user?.email || "", reason: editReason, })
+          toast({ title: "Submitted", description: "Purchase changes submitted for admin approval." })
+        }
+        resetForm()
+        setIsEditDialogOpen(false)
+        setEditingPurchase(null)
+      } else if (user?.role !== "admin" && !editReason.trim()) {
+        toast({ title: "Error", description: "Please provide a reason for the changes.", variant: "destructive" })
       }
-      resetForm()
-      setIsEditDialogOpen(false)
-      setEditingPurchase(null)
-    } else if (!editReason.trim()) {
-      alert("Please provide a reason for the changes")
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to update purchase.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -158,41 +194,76 @@ export default function PurchasesPage() {
     setIsDeleteDialogOpen(true)
   }
 
-  const handleDeleteConfirm = () => {
-    if (deletingPurchase && deleteReason.trim()) {
-      if (user?.role === "admin") {
-        // Admin can delete directly
-        deletePurchase(deletingPurchase.id)
-        showAlert("Purchase deleted successfully!")
-      } else {
-        // Submit for approval
-        submitChange({
-          type: "purchase",
-          action: "delete",
-          entityId: deletingPurchase.id,
-          originalData: {
-            productName: deletingPurchase.productName,
-            supplier: deletingPurchase.supplier,
-            quantityPurchased: deletingPurchase.quantityPurchased,
-            purchasePrice: deletingPurchase.purchasePrice,
-            purchaseDate: deletingPurchase.purchaseDate,
-          },
-          proposedData: {},
-          requestedBy: user?.email || "",
-          reason: deleteReason,
-        })
-        showAlert("Purchase deletion submitted for admin approval. You'll be notified once it's reviewed.")
+  const handleDeleteConfirm = async () => {
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      updateProgress("Validating deletion...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      if (deletingPurchase && (user?.role === "admin" || deleteReason.trim())) {
+        if (user?.role === "admin") {
+          updateProgress("Removing purchase record...", 2, 4)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Adjusting inventory...", 3, 4)
+          await deletePurchase(deletingPurchase.id)
+          
+          updateProgress("Operation completed!", 4, 4)
+          await new Promise(resolve => setTimeout(resolve, 300))
+          
+          toast({ title: "Success", description: "Purchase deleted successfully!", })
+        } else {
+          updateProgress("Preparing deletion request...", 2, 3)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Submitting for approval...", 3, 3)
+          submitChange({ type: "purchase", action: "delete", entityId: deletingPurchase.id, originalData: { productName: deletingPurchase.productName, supplier: deletingPurchase.supplier, quantityPurchased: deletingPurchase.quantityPurchased, purchasePrice: deletingPurchase.purchasePrice, purchaseDate: deletingPurchase.purchaseDate, }, proposedData: {}, requestedBy: user?.email || "", reason: deleteReason, })
+          toast({ title: "Submitted", description: "Purchase deletion submitted for admin approval." })
+        }
+        setIsDeleteDialogOpen(false)
+        setDeletingPurchase(null)
+        setDeleteReason("")
+      } else if (user?.role !== "admin" && !deleteReason.trim()) {
+        toast({ title: "Error", description: "Please provide a reason for deleting this purchase.", variant: "destructive" })
       }
-      setIsDeleteDialogOpen(false)
-      setDeletingPurchase(null)
-      setDeleteReason("")
-    } else if (!deleteReason.trim()) {
-      showAlert("Please provide a reason for deleting this purchase", false)
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to delete purchase.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
   return (
     <div className="space-y-6 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Processing Purchase...
+              </h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>{currentStep}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              
+              <Progress value={progress} className="h-2" />
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Step {Math.ceil((progress / 100) * totalSteps)} of {totalSteps}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Success/Info Alert */}
       {showSuccessAlert && (
         <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
@@ -257,7 +328,7 @@ export default function PurchasesPage() {
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name} (SKU: {product.sku})
+                          {product.name} (HS Code: {product.hsCode})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -311,12 +382,10 @@ export default function PurchasesPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="date">Purchase Date *</Label>
-                  <Input
-                    id="date"
-                    type="date"
+                  <NepaliDatePicker
                     value={formData.purchaseDate}
-                    onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                    required
+                    onChange={(value) => setFormData({ ...formData, purchaseDate: value })}
+                    placeholder="Select purchase date"
                   />
                 </div>
                 <div className="space-y-2">
@@ -389,7 +458,7 @@ export default function PurchasesPage() {
                     <TableCell className="font-medium">
                       Rs {(purchase.quantityPurchased * purchase.purchasePrice).toFixed(2)}
                     </TableCell>
-                    <TableCell>{new Date(purchase.purchaseDate).toLocaleDateString("en-IN")}</TableCell>
+                    <TableCell>{formatNepaliDateForTable(purchase.purchaseDate)}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button
@@ -457,7 +526,7 @@ export default function PurchasesPage() {
                 <SelectContent>
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.name} (SKU: {product.sku})
+                      {product.name} (HS Code: {product.hsCode})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -511,12 +580,10 @@ export default function PurchasesPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-date">Purchase Date *</Label>
-              <Input
-                id="edit-date"
-                type="date"
+              <NepaliDatePicker
                 value={formData.purchaseDate}
-                onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                required
+                onChange={(value) => setFormData({ ...formData, purchaseDate: value })}
+                placeholder="Select purchase date"
               />
             </div>
             <div className="space-y-2">

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Minus, Plus } from "lucide-react"
+import { formatNepaliDateForTable } from "@/lib/utils"
 
 interface ComparisonCardProps {
   title: string
@@ -22,6 +23,10 @@ export function ComparisonCard({ title, originalData, proposedData, action }: Co
 
   const formatKey = (key: string) => {
     return key.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())
+  }
+
+  const formatDate = (value: string) => {
+    return formatNepaliDateForTable(value)
   }
 
   if (action === "create") {

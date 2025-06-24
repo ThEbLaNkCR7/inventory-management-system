@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import Sale from '../../models/Sale'
+import Sale from '../../models/Sale.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 

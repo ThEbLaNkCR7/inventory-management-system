@@ -26,6 +26,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Edit, Trash2, AlertTriangle, Clock, CheckCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/components/ui/use-toast"
+import { Loader2 } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { formatNepaliDateForTable } from "@/lib/utils"
 
 export default function ProductsPage() {
   const { user } = useAuth()
@@ -34,6 +38,7 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<any>(null)
   const [deletingProduct, setDeletingProduct] = useState<any>(null)
@@ -45,7 +50,7 @@ export default function ProductsPage() {
   } | null>(null)
   const [formData, setFormData] = useState({
     name: "",
-    sku: "",
+    hsCode: "",
     description: "",
     category: "",
     stockQuantity: 0,
@@ -56,13 +61,18 @@ export default function ProductsPage() {
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
   const [approvalReason, setApprovalReason] = useState("")
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
+  const [totalSteps, setTotalSteps] = useState(0)
 
   const categories = [...new Set(products.map((p) => p.category))]
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      product.hsCode.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = categoryFilter === "all" || product.category === categoryFilter
     return matchesSearch && matchesCategory
   })
@@ -80,7 +90,7 @@ export default function ProductsPage() {
   const resetForm = () => {
     setFormData({
       name: "",
-      sku: "",
+      hsCode: "",
       description: "",
       category: "",
       stockQuantity: 0,
@@ -92,28 +102,90 @@ export default function ProductsPage() {
     setApprovalReason("")
   }
 
+  const updateProgress = (step: string, current: number, total: number) => {
+    setCurrentStep(step)
+    setProgress((current / total) * 100)
+    setTotalSteps(total)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (user?.role === "admin") {
-      if (editingProduct) {
-        await updateProduct(editingProduct.id, formData)
-        setShowSuccessAlert(true)
-        setAlertMessage("Product updated successfully!")
-      } else {
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      updateProgress("Validating data...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500)) // Simulate validation
+      
+      if (user?.role === "admin") {
+        updateProgress("Adding product to database...", 2, 4)
+        await new Promise(resolve => setTimeout(resolve, 500)) // Simulate database operation
+        
+        updateProgress("Updating inventory...", 3, 4)
         await addProduct(formData)
-        setShowSuccessAlert(true)
-        setAlertMessage("Product added successfully!")
+        
+        updateProgress("Operation completed!", 4, 4)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        toast({ title: "Success", description: "Product added successfully!", })
+        resetForm()
+        setIsAddDialogOpen(false)
+      } else {
+        updateProgress("Preparing approval request...", 2, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateProgress("Submitting for approval...", 3, 3)
+        setPendingAction({ type: "create", data: formData })
+        setShowApprovalDialog(true)
       }
-      resetForm()
-      setIsAddDialogOpen(false)
-    } else {
-      setPendingAction({
-        type: editingProduct ? "update" : "create",
-        data: formData,
-        productId: editingProduct?.id,
-      })
-      setShowApprovalDialog(true)
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to add product.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
+    }
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      if (editingProduct) {
+        updateProgress("Validating changes...", 1, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        if (user?.role === "admin") {
+          updateProgress("Updating product in database...", 2, 4)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Refreshing inventory...", 3, 4)
+          await updateProduct(editingProduct.id, formData)
+          
+          updateProgress("Operation completed!", 4, 4)
+          await new Promise(resolve => setTimeout(resolve, 300))
+          
+          toast({ title: "Success", description: "Product updated successfully!", })
+        } else {
+          updateProgress("Preparing approval request...", 2, 3)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Submitting for approval...", 3, 3)
+          setPendingAction({ type: "update", data: formData, productId: editingProduct.id })
+          setShowApprovalDialog(true)
+        }
+        resetForm()
+        setIsEditDialogOpen(false)
+        setEditingProduct(null)
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to update product.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -132,6 +204,7 @@ export default function ProductsPage() {
 
     resetForm()
     setIsAddDialogOpen(false)
+    setIsEditDialogOpen(false)
     setShowApprovalDialog(false)
     setPendingAction(null)
     setShowSuccessAlert(true)
@@ -142,7 +215,7 @@ export default function ProductsPage() {
     setEditingProduct(product)
     setFormData({
       name: product.name,
-      sku: product.sku,
+      hsCode: product.hsCode,
       description: product.description,
       category: product.category,
       stockQuantity: product.stockQuantity,
@@ -150,7 +223,7 @@ export default function ProductsPage() {
       supplier: product.supplier,
       stockType: product.stockType || "new",
     })
-    setIsAddDialogOpen(true)
+    setIsEditDialogOpen(true)
   }
 
   const handleDelete = (product: any) => {
@@ -159,31 +232,72 @@ export default function ProductsPage() {
   }
 
   const handleDeleteConfirm = async () => {
-    if (deletingProduct) {
-      if (user?.role === "admin") {
-        await deleteProduct(deletingProduct.id)
-        setShowSuccessAlert(true)
-        setAlertMessage("Product deleted successfully!")
-      } else {
-        submitChange({
-          type: "product",
-          action: "delete",
-          entityId: deletingProduct.id,
-          originalData: deletingProduct,
-          proposedData: { deleted: true },
-          requestedBy: user?.email || "",
-          reason: `Request to delete product: ${deletingProduct.name}`,
-        })
-        setShowSuccessAlert(true)
-        setAlertMessage("Product deletion submitted for approval!")
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      if (deletingProduct) {
+        updateProgress("Validating deletion...", 1, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        if (user?.role === "admin") {
+          updateProgress("Removing from database...", 2, 4)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Updating inventory...", 3, 4)
+          await deleteProduct(deletingProduct.id)
+          
+          updateProgress("Operation completed!", 4, 4)
+          await new Promise(resolve => setTimeout(resolve, 300))
+          
+          toast({ title: "Success", description: "Product deleted successfully!", })
+        } else {
+          updateProgress("Preparing deletion request...", 2, 3)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          updateProgress("Submitting for approval...", 3, 3)
+          submitChange({ type: "product", action: "delete", entityId: deletingProduct.id, originalData: deletingProduct, proposedData: { deleted: true }, requestedBy: user?.email || "", reason: `Request to delete product: ${deletingProduct.name}` })
+          toast({ title: "Submitted", description: "Product deletion submitted for approval!" })
+        }
+        setIsDeleteDialogOpen(false)
+        setDeletingProduct(null)
       }
-      setIsDeleteDialogOpen(false)
-      setDeletingProduct(null)
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to delete product.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
   return (
     <div className="space-y-8 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Processing...
+              </h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>{currentStep}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              
+              <Progress value={progress} className="h-2" />
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Step {Math.ceil((progress / 100) * totalSteps)} of {totalSteps}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Success/Info Alert */}
       {showSuccessAlert && (
         <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
@@ -214,10 +328,10 @@ export default function ProductsPage() {
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                  {editingProduct ? "Edit Product" : "Add New Product"}
+                  Add New Product
                 </DialogTitle>
                 <DialogDescription className="text-gray-600 dark:text-gray-400">
-                  {editingProduct ? "Update product information" : "Enter product details to add to inventory"}
+                  Enter product details to add to inventory
                   {user?.role !== "admin" && (
                     <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                       <div className="flex items-center text-amber-800 dark:text-amber-200">
@@ -243,13 +357,13 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="sku" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      SKU
+                    <Label htmlFor="hsCode" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      HS Code
                     </Label>
                     <Input
-                      id="sku"
-                      value={formData.sku}
-                      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                      id="hsCode"
+                      value={formData.hsCode}
+                      onChange={(e) => setFormData({ ...formData, hsCode: e.target.value })}
                       className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
                     />
@@ -339,72 +453,208 @@ export default function ProductsPage() {
                       type="number"
                       step="0.01"
                       value={formData.unitPrice}
-                      onChange={(e) => setFormData({ ...formData, unitPrice: Number.parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, unitPrice: Number.parseFloat(e.target.value) || 0 })
+                      }
                       className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-3 pt-4 border-t dark:border-gray-700">
-                  <Button
-                    type="button"
-                    variant="neutralOutline"
-                    onClick={() => setIsAddDialogOpen(false)}
-                  >
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button
-                    type="submit"
-                    variant="neutral"
-                  >
-                    {user?.role === "admin" ? (editingProduct ? "Update" : "Add") : "Submit for Approval"}
+                  <Button type="submit">
+                    {user?.role === "admin" ? "Add Product" : "Submit for Approval"}
                   </Button>
                 </div>
               </form>
             </DialogContent>
           </Dialog>
+
+          {/* Approval Reason Dialog */}
+          <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Submit for Approval</DialogTitle>
+                <DialogDescription>Please provide a reason for this product request</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reason">Reason for Request</Label>
+                  <Textarea
+                    id="reason"
+                    value={approvalReason}
+                    onChange={(e) => setApprovalReason(e.target.value)}
+                    placeholder="Explain why this change should be made..."
+                    rows={4}
+                    required
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="neutralOutline" onClick={() => setShowApprovalDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={submitForApproval} disabled={!approvalReason.trim()}>
+                    Submit Request
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* Approval Reason Dialog */}
-      <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
-        <DialogContent className="max-w-md bg-white dark:bg-gray-800 border dark:border-gray-700">
+      {/* Edit Product Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-800 dark:text-gray-200">
-              Submit for Approval
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+              Edit Product
             </DialogTitle>
-            <DialogDescription className="dark:text-gray-400">
-              Please provide a reason for this change request
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Update product information
+              {user?.role !== "admin" && (
+                <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <div className="flex items-center text-amber-800 dark:text-amber-200">
+                    <Clock className="h-4 w-4 mr-2" />
+                    <span className="text-sm font-medium">Changes require admin approval</span>
+                  </div>
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <form onSubmit={handleEditSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Product Name
+                </Label>
+                <Input
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-hsCode" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  HS Code
+                </Label>
+                <Input
+                  id="edit-hsCode"
+                  value={formData.hsCode}
+                  onChange={(e) => setFormData({ ...formData, hsCode: e.target.value })}
+                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  required
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="reason" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Reason for Change
+              <Label htmlFor="edit-description" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Description
               </Label>
               <Textarea
-                id="reason"
-                value={approvalReason}
-                onChange={(e) => setApprovalReason(e.target.value)}
-                placeholder="Explain why this change is needed..."
+                id="edit-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                rows={4}
-                required
+                rows={3}
               />
             </div>
-            <div className="flex justify-end space-x-3">
-              <Button
-                variant="neutralOutline"
-                onClick={() => setShowApprovalDialog(false)}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="edit-category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Category
+                </Label>
+                <Input
+                  id="edit-category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-supplier" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Supplier
+                </Label>
+                <Input
+                  id="edit-supplier"
+                  value={formData.supplier}
+                  onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-stockType" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Stock Type
+              </Label>
+              <Select
+                value={formData.stockType}
+                onValueChange={(value: "new" | "old") => setFormData({ ...formData, stockType: value })}
               >
+                <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                  <SelectValue placeholder="Select stock type" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                  <SelectItem value="new">New Stock</SelectItem>
+                  <SelectItem value="old">Old Stock</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="edit-stock" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Stock Quantity
+                </Label>
+                <Input
+                  id="edit-stock"
+                  type="number"
+                  value={formData.stockQuantity}
+                  onChange={(e) =>
+                    setFormData({ ...formData, stockQuantity: Number.parseInt(e.target.value) || 0 })
+                  }
+                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-price" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Unit Price (Rs)
+                </Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  step="0.01"
+                  value={formData.unitPrice}
+                  onChange={(e) =>
+                    setFormData({ ...formData, unitPrice: Number.parseFloat(e.target.value) || 0 })
+                  }
+                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button variant="neutral" onClick={submitForApproval} disabled={!approvalReason.trim()}>
-                Submit Request
+              <Button type="submit">
+                {user?.role === "admin" ? "Update Product" : "Submit for Approval"}
               </Button>
             </div>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -452,7 +702,7 @@ export default function ProductsPage() {
               <TableHeader>
                 <TableRow className="bg-gray-50 dark:bg-gray-700">
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product</TableHead>
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">SKU</TableHead>
+                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">HS Code</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Category</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Stock</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Price (Rs)</TableHead>
@@ -474,7 +724,7 @@ export default function ProductsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="font-mono text-sm dark:text-gray-300">
-                      {product.sku}
+                      {product.hsCode}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -499,7 +749,7 @@ export default function ProductsPage() {
                     </TableCell>
                     <TableCell className="text-gray-700 dark:text-gray-300">{product.supplier}</TableCell>
                     <TableCell className="text-sm text-gray-600 dark:text-gray-400">
-                      {new Date(product.createdAt).toLocaleDateString("en-IN")}
+                      {formatNepaliDateForTable(product.createdAt)}
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">

@@ -13,6 +13,7 @@ import { Users, Plus, Search, Edit, Trash2, UserCheck, UserX, Clock, Eye, Camera
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { NepaliDatePicker } from "@/components/ui/nepali-date-picker"
+import { formatNepaliDateForTable } from "@/lib/utils"
 
 export default function EmployeesPage() {
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployee()
@@ -188,21 +189,7 @@ export default function EmployeesPage() {
 
   // Function to format date in Nepali format
   const formatNepaliDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString)
-      const nepaliYear = date.getFullYear() + 57
-      const nepaliMonth = date.getMonth() + 1
-      const nepaliDay = date.getDate()
-      
-      const nepaliMonths = [
-        'Baisakh', 'Jestha', 'Asar', 'Shrawan', 'Bhadra', 'Ashoj',
-        'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'
-      ]
-      
-      return `${nepaliYear} ${nepaliMonths[nepaliMonth - 1]} ${nepaliDay}`
-    } catch (error) {
-      return dateString
-    }
+    return formatNepaliDateForTable(dateString)
   }
 
   return (

@@ -3,10 +3,17 @@
 import React, { useEffect, useState } from 'react'
 import { Input } from './input'
 import { Label } from './label'
-import { Calendar, X } from 'lucide-react'
+import { Calendar, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from './button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog'
-const NepaliDate = require('nepali-date')
+
+// Try to load the Nepali date library
+let NepaliDate: any = null
+try {
+  NepaliDate = require('nepali-date')
+} catch (error) {
+  console.warn('Nepali date library not available, using fallback conversion')
+}
 
 interface NepaliDatePickerProps {
   value: string
@@ -14,6 +21,7 @@ interface NepaliDatePickerProps {
   label?: string
   placeholder?: string
   className?: string
+  disabled?: boolean
 }
 
 // Nepali months
@@ -51,7 +59,8 @@ export function NepaliDatePicker({
   onChange, 
   label, 
   placeholder = "Select Nepali date",
-  className 
+  className,
+  disabled = false
 }: NepaliDatePickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear() + 57)
@@ -63,39 +72,59 @@ export function NepaliDatePicker({
 
   // Convert Gregorian to Nepali date using the library
   const gregorianToNepali = (date: Date) => {
-    try {
-      const nepaliDate = new NepaliDate(date)
-      return {
-        year: nepaliDate.getYear(),
-        month: nepaliDate.getMonth(),
-        day: nepaliDate.getDate()
+    if (NepaliDate) {
+      try {
+        const nepaliDate = new NepaliDate(date)
+        return {
+          year: nepaliDate.getYear(),
+          month: nepaliDate.getMonth(),
+          day: nepaliDate.getDate()
+        }
+      } catch (error) {
+        console.warn('Error using Nepali date library, using fallback:', error)
       }
-    } catch (error) {
-      // Fallback to approximate conversion
-      const year = date.getFullYear() + 57
-      const month = date.getMonth() + 1
-      const day = date.getDate()
-      return { year, month, day }
     }
+    
+    // Fallback to approximate conversion
+    const year = date.getFullYear() + 57
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    return { year, month, day }
   }
 
   // Convert Nepali to Gregorian date using the library
   const nepaliToGregorian = (nepaliYear: number, nepaliMonth: number, nepaliDay: number) => {
-    try {
-      const nepaliDate = new NepaliDate(nepaliYear, nepaliMonth, nepaliDay)
-      return new Date(nepaliDate.getTime())
-    } catch (error) {
-      // Fallback to approximate conversion
-      const gregorianYear = nepaliYear - 57
-      const gregorianMonth = nepaliMonth - 1
-      const gregorianDay = nepaliDay
-      return new Date(gregorianYear, gregorianMonth, gregorianDay)
+    if (NepaliDate) {
+      try {
+        const nepaliDate = new NepaliDate(nepaliYear, nepaliMonth, nepaliDay)
+        return new Date(nepaliDate.getTime())
+      } catch (error) {
+        console.warn('Error using Nepali date library, using fallback:', error)
+      }
     }
+    
+    // Fallback to approximate conversion
+    const gregorianYear = nepaliYear - 57
+    const gregorianMonth = nepaliMonth - 1
+    const gregorianDay = nepaliDay
+    return new Date(gregorianYear, gregorianMonth, gregorianDay)
   }
 
   // Format Nepali date for display
   const formatNepaliDate = (year: number, month: number, day: number) => {
     return `${year} ${nepaliMonths[month - 1]} ${day}`
+  }
+
+  // Format date for button display (both Nepali and Gregorian)
+  const formatDateForDisplay = (year: number, month: number, day: number) => {
+    const nepaliDate = formatNepaliDate(year, month, day)
+    try {
+      const gregorianDate = nepaliToGregorian(year, month, day)
+      const gregorianFormatted = gregorianDate.toLocaleDateString("en-IN")
+      return `${nepaliDate} (${gregorianFormatted})`
+    } catch (error) {
+      return nepaliDate
+    }
   }
 
   // Parse value if it exists
@@ -148,12 +177,42 @@ export function NepaliDatePicker({
     setSelectedMonth(previewMonth)
     setSelectedDay(previewDay)
     const gregorianDate = nepaliToGregorian(previewYear, previewMonth, previewDay)
-    onChange(gregorianDate.toISOString().split('T')[0])
+    const dateString = gregorianDate.toISOString().split('T')[0]
+    console.log('Nepali Date:', { year: previewYear, month: previewMonth, day: previewDay })
+    console.log('Gregorian Date:', gregorianDate)
+    console.log('Date String:', dateString)
+    onChange(dateString)
     setIsOpen(false)
   }
 
   const handleCancel = () => {
     setIsOpen(false)
+  }
+
+  const handlePreviousMonth = () => {
+    let newMonth = previewMonth - 1
+    let newYear = previewYear
+    
+    if (newMonth < 1) {
+      newMonth = 12
+      newYear = previewYear - 1
+    }
+    
+    handleMonthPreview(newMonth)
+    setPreviewYear(newYear)
+  }
+
+  const handleNextMonth = () => {
+    let newMonth = previewMonth + 1
+    let newYear = previewYear
+    
+    if (newMonth > 12) {
+      newMonth = 1
+      newYear = previewYear + 1
+    }
+    
+    handleMonthPreview(newMonth)
+    setPreviewYear(newYear)
   }
 
   // Generate calendar days
@@ -179,47 +238,58 @@ export function NepaliDatePicker({
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()
-          setIsOpen(true)
+          if (!disabled) {
+            setIsOpen(true)
+          }
         }}
         type="button"
+        disabled={disabled}
       >
         <Calendar className="mr-2 h-4 w-4" />
-        {value ? formatNepaliDate(selectedYear, selectedMonth, selectedDay) : placeholder}
+        {value ? formatDateForDisplay(selectedYear, selectedMonth, selectedDay) : placeholder}
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-          return
-        }
-        setIsOpen(true)
-      }}>
-        <DialogContent 
-          className="max-w-sm" 
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Select Nepali Date</DialogTitle>
+            <DialogTitle className="text-center">Select Nepali Date</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
             {/* Preview Display */}
-            <div className="text-center p-2 bg-gray-50 rounded-lg">
-              <div className="text-sm text-gray-600">Selected Date:</div>
-              <div className="text-base font-semibold text-gray-900">
+            <div className="text-center p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border">
+              <div className="text-sm text-gray-600 mb-1">Selected Date:</div>
+              <div className="text-lg font-semibold text-gray-900">
                 {formatNepaliDate(previewYear, previewMonth, previewDay)}
               </div>
             </div>
             
-            {/* Year and Month Selector */}
-            <div className="flex items-center justify-between space-x-2">
+            {/* Month Navigation */}
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousMonth}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
               <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium">Year:</span>
+                <select
+                  value={previewMonth}
+                  onChange={(e) => handleMonthPreview(Number(e.target.value))}
+                  className="border rounded px-2 py-1 text-sm bg-transparent font-medium"
+                >
+                  {nepaliMonths.map((month, index) => (
+                    <option key={index + 1} value={index + 1}>{month}</option>
+                  ))}
+                </select>
+                
                 <select
                   value={previewYear}
                   onChange={(e) => handleYearPreview(Number(e.target.value))}
-                  className="border rounded px-1 py-1 text-xs w-16 bg-transparent"
+                  className="border rounded px-2 py-1 text-sm bg-transparent font-medium w-20"
                 >
                   {nepaliYears.map(year => (
                     <option key={year} value={year}>{year}</option>
@@ -227,25 +297,21 @@ export function NepaliDatePicker({
                 </select>
               </div>
               
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium">Month:</span>
-                <select
-                  value={previewMonth}
-                  onChange={(e) => handleMonthPreview(Number(e.target.value))}
-                  className="border rounded px-1 py-1 text-xs w-20 bg-transparent"
-                >
-                  {nepaliMonths.map((month, index) => (
-                    <option key={index + 1} value={index + 1}>{month}</option>
-                  ))}
-                </select>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextMonth}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-0.5">
+            <div className="grid grid-cols-7 gap-1">
               {/* Day headers */}
               {['आ', 'सो', 'मं', 'बु', 'बि', 'शु', 'श'].map(day => (
-                <div key={day} className="text-center text-xs font-medium text-gray-500 p-1 h-6 flex items-center justify-center">
+                <div key={day} className="text-center text-xs font-medium text-gray-500 p-2 h-8 flex items-center justify-center">
                   {day}
                 </div>
               ))}
@@ -256,7 +322,7 @@ export function NepaliDatePicker({
                   key={day}
                   variant={previewDay === day ? "default" : "outline"}
                   size="sm"
-                  className="h-6 w-6 p-0 text-xs hover:bg-primary hover:text-primary-foreground transition-colors"
+                  className="h-8 w-8 p-0 text-sm hover:bg-primary hover:text-primary-foreground transition-colors"
                   onClick={() => handleDatePreview(day)}
                 >
                   {day}

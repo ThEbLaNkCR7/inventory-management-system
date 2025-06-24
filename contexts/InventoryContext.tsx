@@ -1,12 +1,12 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
 
 export interface Product {
   id: string
   name: string
-  sku: string
+  hsCode: string
   description: string
   category: string
   stockQuantity: number
@@ -73,6 +73,9 @@ interface InventoryContextType {
   sales: Sale[]
   clients: Client[]
   suppliers: Supplier[]
+  isRefreshing: boolean
+  lastRefresh: Date
+  refreshData: () => Promise<void>
   addProduct: (product: Omit<Product, "id" | "createdAt">) => void
   updateProduct: (id: string, product: Partial<Product>) => void
   deleteProduct: (id: string) => void
@@ -128,38 +131,58 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   const [sales, setSales] = useState<Sale[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+
+  // Enhanced fetch function with better error handling
+  const fetchAllData = useCallback(async (showLoading = true) => {
+    if (showLoading) setIsRefreshing(true)
+    
+    try {
+      console.log("🔄 Refreshing inventory data...")
+      const [productsRes, purchasesRes, salesRes, clientsRes, suppliersRes] = await Promise.all([
+        fetch("/api/products"),
+        fetch("/api/purchases"),
+        fetch("/api/sales"),
+        fetch("/api/clients"),
+        fetch("/api/suppliers"),
+      ])
+      
+      const productsData = await productsRes.json()
+      const purchasesData = await purchasesRes.json()
+      const salesData = await salesRes.json()
+      const clientsData = await clientsRes.json()
+      const suppliersData = await suppliersRes.json()
+      
+      setProducts((productsData.products || []).map((p: any) => ({ ...p, id: p._id || p.id })).filter((p: any) => p.isActive !== false))
+      setPurchases((purchasesData.purchases || []).map((p: any) => ({ ...p, id: p._id || p.id })).filter((p: any) => p.isActive !== false))
+      setSales((salesData.sales || []).map((s: any) => ({ ...s, id: s._id || s.id })).filter((s: any) => s.isActive !== false))
+      setClients((clientsData.clients || []).map((c: any) => ({ ...c, id: c._id || c.id })).filter((c: any) => c.isActive !== false))
+      setSuppliers((suppliersData.suppliers || []).map((s: any) => ({ ...s, id: s._id || s.id })).filter((s: any) => s.isActive !== false))
+      
+      setLastRefresh(new Date())
+      console.log("✅ Inventory data refreshed successfully")
+    } catch (error) {
+      console.error("❌ Failed to fetch inventory data:", error)
+    } finally {
+      if (showLoading) setIsRefreshing(false)
+    }
+  }, [])
 
   // Fetch all entities from API on mount
   useEffect(() => {
-    async function fetchAll() {
-      try {
-        const [productsRes, purchasesRes, salesRes, clientsRes, suppliersRes] = await Promise.all([
-          fetch("/api/products"),
-          fetch("/api/purchases"),
-          fetch("/api/sales"),
-          fetch("/api/clients"),
-          fetch("/api/suppliers"),
-        ])
-        const productsData = await productsRes.json()
-        const purchasesData = await purchasesRes.json()
-        const salesData = await salesRes.json()
-        const clientsData = await clientsRes.json()
-        const suppliersData = await suppliersRes.json()
-        setProducts((productsData.products || []).map((p: any) => ({ ...p, id: p._id || p.id })).filter((p: any) => p.isActive !== false))
-        setPurchases((purchasesData.purchases || []).map((p: any) => ({ ...p, id: p._id || p.id })).filter((p: any) => p.isActive !== false))
-        setSales((salesData.sales || []).map((s: any) => ({ ...s, id: s._id || s.id })).filter((s: any) => s.isActive !== false))
-        setClients((clientsData.clients || []).map((c: any) => ({ ...c, id: c._id || c.id })).filter((c: any) => c.isActive !== false))
-        setSuppliers((suppliersData.suppliers || []).map((s: any) => ({ ...s, id: s._id || s.id })).filter((s: any) => s.isActive !== false))
-      } catch (error) {
-        console.error("Failed to fetch inventory data:", error)
-      }
-    }
-    fetchAll()
-  }, [])
+    fetchAllData(false) // Don't show loading on initial load
+  }, [fetchAllData])
 
-  // Add product via API
+  // Auto-refresh function that can be called after operations
+  const refreshData = useCallback(async () => {
+    await fetchAllData(true)
+  }, [fetchAllData])
+
+  // Products
   const addProduct = async (product: Omit<Product, "id" | "createdAt">) => {
     try {
+      console.log("📦 Adding new product:", product.name)
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,14 +191,19 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to add product")
       const newProduct = await res.json()
       setProducts((prev) => [...prev, { ...newProduct, id: newProduct._id || newProduct.id }])
+      console.log("✅ Product added successfully:", product.name)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Add product error:", error)
+      console.error("❌ Add product error:", error)
+      throw error
     }
   }
-
-  // Update product via API
+  
   const updateProduct = async (id: string, updatedProduct: Partial<Product>) => {
     try {
+      console.log("🔄 Updating product:", id)
       const res = await fetch(`/api/products/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -184,25 +212,36 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to update product")
       const product = await res.json()
       setProducts((prev) => prev.map((p) => (p.id === id ? { ...product, id: product._id || product.id } : p)))
+      console.log("✅ Product updated successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Update product error:", error)
+      console.error("❌ Update product error:", error)
+      throw error
     }
   }
-
-  // Delete product via API (soft delete)
+  
   const deleteProduct = async (id: string) => {
     try {
+      console.log("🗑️ Deleting product:", id)
       const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete product")
-      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, isActive: false } : p)))
+      setProducts((prev) => prev.filter((p) => p.id !== id))
+      console.log("✅ Product deleted successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Delete product error:", error)
+      console.error("❌ Delete product error:", error)
+      throw error
     }
   }
 
   // Purchases
   const addPurchase = async (purchase: Omit<Purchase, "id">) => {
     try {
+      console.log("🛒 Adding new purchase:", purchase.productName)
       const res = await fetch("/api/purchases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -211,12 +250,19 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to add purchase")
       const newPurchase = await res.json()
       setPurchases((prev) => [...prev, { ...newPurchase, id: newPurchase._id || newPurchase.id }])
+      console.log("✅ Purchase added successfully:", purchase.productName)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Add purchase error:", error)
+      console.error("❌ Add purchase error:", error)
+      throw error
     }
   }
+  
   const updatePurchase = async (id: string, updatedPurchase: Partial<Purchase>) => {
     try {
+      console.log("🔄 Updating purchase:", id)
       const res = await fetch(`/api/purchases/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -224,24 +270,37 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       })
       if (!res.ok) throw new Error("Failed to update purchase")
       const purchase = await res.json()
-      setPurchases((prev) => prev.map((p) => (p.id === id ? purchase : p)))
+      setPurchases((prev) => prev.map((p) => (p.id === id ? { ...purchase, id: purchase._id || purchase.id } : p)))
+      console.log("✅ Purchase updated successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Update purchase error:", error)
+      console.error("❌ Update purchase error:", error)
+      throw error
     }
   }
+  
   const deletePurchase = async (id: string) => {
     try {
+      console.log("🗑️ Deleting purchase:", id)
       const res = await fetch(`/api/purchases/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete purchase")
-      setPurchases((prev) => prev.map((p) => (p.id === id ? { ...p, isActive: false } : p)))
+      setPurchases((prev) => prev.filter((p) => p.id !== id))
+      console.log("✅ Purchase deleted successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Delete purchase error:", error)
+      console.error("❌ Delete purchase error:", error)
+      throw error
     }
   }
 
   // Sales
   const addSale = async (sale: Omit<Sale, "id">) => {
     try {
+      console.log("💰 Adding new sale:", sale.productName)
       const res = await fetch("/api/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -250,12 +309,19 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to add sale")
       const newSale = await res.json()
       setSales((prev) => [...prev, { ...newSale, id: newSale._id || newSale.id }])
+      console.log("✅ Sale added successfully:", sale.productName)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Add sale error:", error)
+      console.error("❌ Add sale error:", error)
+      throw error
     }
   }
+  
   const updateSale = async (id: string, updatedSale: Partial<Sale>) => {
     try {
+      console.log("🔄 Updating sale:", id)
       const res = await fetch(`/api/sales/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -263,24 +329,37 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       })
       if (!res.ok) throw new Error("Failed to update sale")
       const sale = await res.json()
-      setSales((prev) => prev.map((s) => (s.id === id ? sale : s)))
+      setSales((prev) => prev.map((s) => (s.id === id ? { ...sale, id: sale._id || sale.id } : s)))
+      console.log("✅ Sale updated successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Update sale error:", error)
+      console.error("❌ Update sale error:", error)
+      throw error
     }
   }
+  
   const deleteSale = async (id: string) => {
     try {
+      console.log("🗑️ Deleting sale:", id)
       const res = await fetch(`/api/sales/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete sale")
-      setSales((prev) => prev.map((s) => (s.id === id ? { ...s, isActive: false } : s)))
+      setSales((prev) => prev.filter((s) => s.id !== id))
+      console.log("✅ Sale deleted successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Delete sale error:", error)
+      console.error("❌ Delete sale error:", error)
+      throw error
     }
   }
 
   // Clients
   const addClient = async (client: Omit<Client, "id">) => {
     try {
+      console.log("👤 Adding new client:", client.name)
       const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -289,12 +368,19 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to add client")
       const newClient = await res.json()
       setClients((prev) => [...prev, { ...newClient, id: newClient._id || newClient.id }])
+      console.log("✅ Client added successfully:", client.name)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Add client error:", error)
+      console.error("❌ Add client error:", error)
+      throw error
     }
   }
+  
   const updateClient = async (id: string, updatedClient: Partial<Client>) => {
     try {
+      console.log("🔄 Updating client:", id)
       const res = await fetch(`/api/clients/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -303,23 +389,36 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to update client")
       const client = await res.json()
       setClients((prev) => prev.map((c) => (c.id === id ? { ...client, id: client._id || client.id } : c)))
+      console.log("✅ Client updated successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Update client error:", error)
+      console.error("❌ Update client error:", error)
+      throw error
     }
   }
+  
   const deleteClient = async (id: string) => {
     try {
+      console.log("🗑️ Deleting client:", id)
       const res = await fetch(`/api/clients/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete client")
       setClients((prev) => prev.map((c) => (c.id === id ? { ...c, isActive: false } : c)))
+      console.log("✅ Client deleted successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Delete client error:", error)
+      console.error("❌ Delete client error:", error)
+      throw error
     }
   }
 
   // Suppliers
   const addSupplier = async (supplier: Omit<Supplier, "id">) => {
     try {
+      console.log("🏢 Adding new supplier:", supplier.company)
       const res = await fetch("/api/suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -328,12 +427,19 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to add supplier")
       const newSupplier = await res.json()
       setSuppliers((prev) => [...prev, { ...newSupplier, id: newSupplier._id || newSupplier.id }])
+      console.log("✅ Supplier added successfully:", supplier.company)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Add supplier error:", error)
+      console.error("❌ Add supplier error:", error)
+      throw error
     }
   }
+  
   const updateSupplier = async (id: string, updatedSupplier: Partial<Supplier>) => {
     try {
+      console.log("🔄 Updating supplier:", id)
       const res = await fetch(`/api/suppliers/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -342,17 +448,29 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to update supplier")
       const supplier = await res.json()
       setSuppliers((prev) => prev.map((s) => (s.id === id ? supplier : s)))
+      console.log("✅ Supplier updated successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Update supplier error:", error)
+      console.error("❌ Update supplier error:", error)
+      throw error
     }
   }
+  
   const deleteSupplier = async (id: string) => {
     try {
+      console.log("🗑️ Deleting supplier:", id)
       const res = await fetch(`/api/suppliers/${id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete supplier")
-      setSuppliers((prev) => prev.map((s) => (s.id === id ? { ...s, isActive: false } : s)))
+      setSuppliers((prev) => prev.filter((s) => s.id !== id))
+      console.log("✅ Supplier deleted successfully:", id)
+      
+      // Auto-refresh to ensure data consistency
+      setTimeout(() => refreshData(), 500)
     } catch (error) {
-      console.error("Delete supplier error:", error)
+      console.error("❌ Delete supplier error:", error)
+      throw error
     }
   }
 
@@ -533,6 +651,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         sales,
         clients,
         suppliers,
+        isRefreshing,
+        lastRefresh,
+        refreshData,
         addProduct,
         updateProduct,
         deleteProduct,
