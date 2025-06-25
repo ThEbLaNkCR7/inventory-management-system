@@ -9,10 +9,9 @@ const productSchema = new mongoose.Schema(
     },
     hsCode: {
       type: String,
-      required: true,
-      unique: true,
       uppercase: true,
       trim: true,
+      default: undefined,
     },
     description: {
       type: String,
@@ -20,7 +19,6 @@ const productSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      required: true,
       trim: true,
     },
     stockQuantity: {
@@ -91,6 +89,14 @@ productSchema.pre("save", function (next) {
     this.stockType = "old"
   } else {
     this.stockType = "new"
+  }
+
+  // Handle empty HS Code - set to undefined to avoid unique constraint issues
+  if (!this.hsCode || this.hsCode === "" || this.hsCode === null || this.hsCode.trim() === "") {
+    this.hsCode = undefined
+  } else {
+    // Ensure HS Code is properly formatted
+    this.hsCode = this.hsCode.trim().toUpperCase()
   }
 
   next()

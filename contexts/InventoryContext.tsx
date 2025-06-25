@@ -7,7 +7,7 @@ export interface Product {
   id: string
   name: string
   hsCode: string
-  description: string
+  description?: string
   category: string
   stockQuantity: number
   unitPrice: number
@@ -188,7 +188,13 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(product),
       })
-      if (!res.ok) throw new Error("Failed to add product")
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        const errorMessage = errorData.message || `Failed to add product (${res.status})`
+        throw new Error(errorMessage)
+      }
+      
       const newProduct = await res.json()
       setProducts((prev) => [...prev, { ...newProduct, id: newProduct._id || newProduct.id }])
       console.log("✅ Product added successfully:", product.name)

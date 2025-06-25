@@ -42,10 +42,11 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: 
         className={`
         fixed inset-y-0 left-0 z-50 w-64 shadow-2xl transform transition-transform duration-300 ease-in-out
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        bg-gray-900 dark:bg-gray-950
+        bg-gray-900 dark:bg-gray-950 flex flex-col
       `}
       >
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-700 dark:border-gray-600">
+        {/* Header - Fixed */}
+        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-700 dark:border-gray-600 flex-shrink-0">
           <h1 className="text-xl font-bold text-white">
             Sheel Inventory Pro
           </h1>
@@ -70,8 +71,9 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: 
           </div>
         </div>
 
-        <nav className="mt-6">
-          <div className="px-3">
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="px-3 py-4">
             {filteredMenuItems.map((item) => {
               const Icon = item.icon
               return (
@@ -99,7 +101,8 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: 
           </div>
         </nav>
 
-        <div className="absolute bottom-4 left-4 right-4">
+        {/* User Profile - Fixed at bottom */}
+        <div className="flex-shrink-0 p-4 border-t border-gray-700 dark:border-gray-600">
           <div className="bg-gray-800 dark:bg-gray-700 backdrop-blur-sm rounded-lg p-4 border border-gray-600 dark:border-gray-500">
             <p className="text-sm font-medium text-white">{user?.name}</p>
             <p className="text-xs text-gray-300 capitalize">{user?.role}</p>

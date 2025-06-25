@@ -33,7 +33,7 @@ import { formatNepaliDateForTable } from "@/lib/utils"
 
 export default function ProductsPage() {
   const { user } = useAuth()
-  const { products, addProduct, updateProduct, deleteProduct } = useInventory()
+  const { products, addProduct, updateProduct, deleteProduct, refreshData } = useInventory()
   const { submitChange } = useApproval()
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
@@ -129,7 +129,12 @@ export default function ProductsPage() {
         
         toast({ title: "Success", description: "Product added successfully!", })
         resetForm()
-        setIsAddDialogOpen(false)
+        setIsAddDialogOpen(false) // Close form immediately
+        setShowSuccessAlert(true)
+        setAlertMessage("Product added successfully!")
+        
+        // Force refresh the data
+        await refreshData()
       } else {
         updateProgress("Preparing approval request...", 2, 3)
         await new Promise(resolve => setTimeout(resolve, 500))
@@ -139,7 +144,8 @@ export default function ProductsPage() {
         setShowApprovalDialog(true)
       }
     } catch (err) {
-      toast({ title: "Error", description: "Failed to add product.", variant: "destructive" })
+      const errorMessage = err instanceof Error ? err.message : "Failed to add product."
+      toast({ title: "Error", description: errorMessage, variant: "destructive" })
     } finally {
       setIsLoading(false)
       setProgress(0)
@@ -168,6 +174,14 @@ export default function ProductsPage() {
           await new Promise(resolve => setTimeout(resolve, 300))
           
           toast({ title: "Success", description: "Product updated successfully!", })
+          resetForm()
+          setIsEditDialogOpen(false) // Close form immediately
+          setEditingProduct(null)
+          setShowSuccessAlert(true)
+          setAlertMessage("Product updated successfully!")
+          
+          // Force refresh the data
+          await refreshData()
         } else {
           updateProgress("Preparing approval request...", 2, 3)
           await new Promise(resolve => setTimeout(resolve, 500))
@@ -176,12 +190,10 @@ export default function ProductsPage() {
           setPendingAction({ type: "update", data: formData, productId: editingProduct.id })
           setShowApprovalDialog(true)
         }
-        resetForm()
-        setIsEditDialogOpen(false)
-        setEditingProduct(null)
       }
     } catch (err) {
-      toast({ title: "Error", description: "Failed to update product.", variant: "destructive" })
+      const errorMessage = err instanceof Error ? err.message : "Failed to update product."
+      toast({ title: "Error", description: errorMessage, variant: "destructive" })
     } finally {
       setIsLoading(false)
       setProgress(0)
@@ -251,6 +263,11 @@ export default function ProductsPage() {
           await new Promise(resolve => setTimeout(resolve, 300))
           
           toast({ title: "Success", description: "Product deleted successfully!", })
+          setIsDeleteDialogOpen(false)
+          setDeletingProduct(null)
+          
+          // Force refresh the data
+          await refreshData()
         } else {
           updateProgress("Preparing deletion request...", 2, 3)
           await new Promise(resolve => setTimeout(resolve, 500))
@@ -258,12 +275,13 @@ export default function ProductsPage() {
           updateProgress("Submitting for approval...", 3, 3)
           submitChange({ type: "product", action: "delete", entityId: deletingProduct.id, originalData: deletingProduct, proposedData: { deleted: true }, requestedBy: user?.email || "", reason: `Request to delete product: ${deletingProduct.name}` })
           toast({ title: "Submitted", description: "Product deletion submitted for approval!" })
+          setIsDeleteDialogOpen(false)
+          setDeletingProduct(null)
         }
-        setIsDeleteDialogOpen(false)
-        setDeletingProduct(null)
       }
     } catch (err) {
-      toast({ title: "Error", description: "Failed to delete product.", variant: "destructive" })
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete product."
+      toast({ title: "Error", description: errorMessage, variant: "destructive" })
     } finally {
       setIsLoading(false)
       setProgress(0)
@@ -314,6 +332,106 @@ export default function ProductsPage() {
           <p className="text-gray-600 dark:text-gray-300 text-lg">Manage your product inventory with ease</p>
         </div>
         <div className="absolute top-6 right-0 flex space-x-3">
+          {/* Temporary Debug Button */}
+          <Button
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/products?debug=true')
+                const data = await response.json()
+                console.log('Debug - All products:', data)
+                alert(`Found ${data.count} products. Check console for details.`)
+              } catch (error) {
+                console.error('Debug error:', error)
+              }
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Debug DB
+          </Button>
+          
+          {/* Migration Button */}
+          <Button
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/products?migrate=true')
+                const data = await response.json()
+                console.log('Migration result:', data)
+                alert(`Migration completed. Modified ${data.modifiedCount} products.`)
+                // Refresh the data after migration
+                await refreshData()
+              } catch (error) {
+                console.error('Migration error:', error)
+                alert('Migration failed. Check console for details.')
+              }
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Fix HS Codes
+          </Button>
+          
+          {/* Test Button */}
+          <Button
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/products?test=true')
+                const data = await response.json()
+                console.log('Test result:', data)
+                alert(data.message)
+              } catch (error) {
+                console.error('Test error:', error)
+                alert('Test failed. Check console for details.')
+              }
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Test Model
+          </Button>
+          
+          {/* Remove SKU Button */}
+          <Button
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/products?removeSku=true')
+                const data = await response.json()
+                console.log('SKU removal result:', data)
+                alert(`${data.message}. Modified ${data.modifiedCount} products. ${data.note}`)
+                // Refresh the data after migration
+                await refreshData()
+              } catch (error) {
+                console.error('SKU removal error:', error)
+                alert('SKU removal failed. Check console for details.')
+              }
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Remove SKU
+          </Button>
+          
+          {/* Aggressive SKU Cleanup Button */}
+          <Button
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/products?cleanupSku=true')
+                const data = await response.json()
+                console.log('Aggressive SKU cleanup result:', data)
+                alert(`${data.message}. Modified ${data.modifiedCount} products. ${data.note}`)
+                // Refresh the data after migration
+                await refreshData()
+              } catch (error) {
+                console.error('Aggressive SKU cleanup error:', error)
+                alert('Aggressive SKU cleanup failed. Check console for details.')
+              }
+            }}
+            variant="outline"
+            size="sm"
+          >
+            Cleanup SKU
+          </Button>
+          
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button
@@ -365,22 +483,8 @@ export default function ProductsPage() {
                       value={formData.hsCode}
                       onChange={(e) => setFormData({ ...formData, hsCode: e.target.value })}
                       className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                      required
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Description
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                    rows={3}
-                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -393,7 +497,6 @@ export default function ProductsPage() {
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                       className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -549,37 +652,23 @@ export default function ProductsPage() {
                   value={formData.hsCode}
                   onChange={(e) => setFormData({ ...formData, hsCode: e.target.value })}
                   className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                  required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-description" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Description
+              <Label htmlFor="edit-category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Category
               </Label>
-              <Textarea
-                id="edit-description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              <Input
+                id="edit-category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                rows={3}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="edit-category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Category
-                </Label>
-                <Input
-                  id="edit-category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                  required
-                />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-supplier" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                   Supplier

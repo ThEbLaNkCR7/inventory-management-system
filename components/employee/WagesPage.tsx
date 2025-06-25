@@ -100,12 +100,17 @@ export default function WagesPage() {
         record.id === editingWage.id ? wageData : record
       ))
       setEditingWage(null)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Wage record updated successfully!")
     } else {
       setWageRecords(prev => [...prev, wageData])
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Wage record added successfully!")
     }
-
-    resetForm()
-    setIsAddDialogOpen(false)
   }
 
   const handleEdit = (wage: WageRecord) => {

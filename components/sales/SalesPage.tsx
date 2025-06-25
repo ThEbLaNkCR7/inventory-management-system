@@ -118,6 +118,8 @@ export default function SalesPage() {
         }
         resetForm()
         setIsAddDialogOpen(false)
+        setShowSuccessAlert(true)
+        setAlertMessage("Sale added successfully!")
       } else {
         toast({ title: "Error", description: "Insufficient stock for this sale.", variant: "destructive" })
       }
@@ -179,6 +181,8 @@ export default function SalesPage() {
         resetForm()
         setIsEditDialogOpen(false)
         setEditingSale(null)
+        setShowSuccessAlert(true)
+        setAlertMessage("Sale updated successfully!")
       } else if (user?.role !== "admin" && !editReason.trim()) {
         toast({ title: "Error", description: "Please provide a reason for the changes.", variant: "destructive" })
       }

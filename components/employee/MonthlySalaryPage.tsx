@@ -93,16 +93,19 @@ export default function MonthlySalaryPage() {
     }
 
     if (editingSalary) {
-      setSalaryRecords(prev => prev.map(record => 
-        record.id === editingSalary.id ? salaryData : record
-      ))
+      updateSalary(editingSalary.id, salaryData)
       setEditingSalary(null)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Salary record updated successfully!")
     } else {
-      setSalaryRecords(prev => [...prev, salaryData])
+      addSalary(salaryData)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Salary record added successfully!")
     }
-
-    resetForm()
-    setIsAddDialogOpen(false)
   }
 
   const handleEdit = (salary: SalaryRecord) => {

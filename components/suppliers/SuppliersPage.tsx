@@ -116,6 +116,8 @@ export default function SuppliersPage() {
         toast({ title: "Success", description: "Supplier added successfully!", })
         resetForm()
         setIsAddDialogOpen(false)
+        setShowSuccessAlert(true)
+        setAlertMessage("Supplier added successfully!")
       } else {
         updateProgress("Preparing approval request...", 2, 3)
         await new Promise(resolve => setTimeout(resolve, 500))
@@ -186,6 +188,12 @@ export default function SuppliersPage() {
           await new Promise(resolve => setTimeout(resolve, 300))
           
           toast({ title: "Success", description: "Supplier updated successfully!", })
+          resetForm()
+          setIsEditDialogOpen(false)
+          setEditingSupplier(null)
+          setApprovalReason("")
+          setShowSuccessAlert(true)
+          setAlertMessage("Supplier updated successfully!")
         } else {
           updateProgress("Preparing approval request...", 2, 3)
           await new Promise(resolve => setTimeout(resolve, 500))

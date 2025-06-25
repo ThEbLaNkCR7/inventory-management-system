@@ -42,6 +42,8 @@ export default function EmployeesPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isImageModalOpen, setIsImageModalOpen] = useState(false)
   const [viewingImage, setViewingImage] = useState<{ src: string; alt: string } | null>(null)
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
+  const [alertMessage, setAlertMessage] = useState("")
 
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
@@ -81,12 +83,17 @@ export default function EmployeesPage() {
     if (editingEmployee) {
       updateEmployee(editingEmployee.id, employeeData)
       setEditingEmployee(null)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Employee updated successfully!")
     } else {
       addEmployee(employeeData)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Employee added successfully!")
     }
-
-    resetForm()
-    setIsAddDialogOpen(false)
   }
 
   const handleEdit = (employee: any) => {

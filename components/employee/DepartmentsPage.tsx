@@ -20,6 +20,8 @@ export default function DepartmentsPage() {
     budget: "",
     location: "",
   })
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
+  const [alertMessage, setAlertMessage] = useState("")
 
   const filteredDepartments = departments.filter((department) =>
     department.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -48,12 +50,17 @@ export default function DepartmentsPage() {
     if (editingDepartment) {
       updateDepartment(editingDepartment.id, departmentData)
       setEditingDepartment(null)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Department updated successfully!")
     } else {
       addDepartment(departmentData)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Department added successfully!")
     }
-
-    resetForm()
-    setIsAddDialogOpen(false)
   }
 
   const handleEdit = (department: any) => {

@@ -36,6 +36,9 @@ export default function BatchesPage() {
     arrivalDate: new Date().toISOString().split("T")[0],
     status: "pending" as const,
   })
+  const [editingBatch, setEditingBatch] = useState<BatchItem | null>(null)
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
+  const [alertMessage, setAlertMessage] = useState("")
 
   const filteredBatches = batches.filter(
     (batch) =>
@@ -94,15 +97,27 @@ export default function BatchesPage() {
     const totalItems = batchItems.reduce((sum, item) => sum + item.quantity, 0)
     const totalValue = batchItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
 
-    addBatch({
+    const batchData = {
       ...formData,
       items: batchItems,  
       totalItems,
       totalValue,
-    })
+    }
 
-    resetForm()
-    setIsAddDialogOpen(false)
+    if (editingBatch) {
+      updateBatch(editingBatch.id, batchData)
+      setEditingBatch(null)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Batch updated successfully!")
+    } else {
+      addBatch(batchData)
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Batch added successfully!")
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -378,6 +393,15 @@ export default function BatchesPage() {
         <div className="text-center py-12">
           <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <p className="text-gray-500">No batches found</p>
+        </div>
+      )}
+
+      {showSuccessAlert && (
+        <div className="fixed bottom-0 left-0 right-0 p-4">
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+            <strong className="font-bold">Success!</strong>
+            <span className="block sm:inline">{alertMessage}</span>
+          </div>
         </div>
       )}
     </div>
