@@ -33,7 +33,7 @@ import { formatNepaliDateForTable } from "@/lib/utils"
 
 export default function ProductsPage() {
   const { user } = useAuth()
-  const { products, addProduct, updateProduct, deleteProduct, refreshData } = useInventory()
+  const { products, addProduct, updateProduct, deleteProduct, refreshData, suppliers } = useInventory()
   const { submitChange } = useApproval()
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
@@ -332,106 +332,6 @@ export default function ProductsPage() {
           <p className="text-gray-600 dark:text-gray-300 text-lg">Manage your product inventory with ease</p>
         </div>
         <div className="absolute top-6 right-0 flex space-x-3">
-          {/* Temporary Debug Button */}
-          <Button
-            onClick={async () => {
-              try {
-                const response = await fetch('/api/products?debug=true')
-                const data = await response.json()
-                console.log('Debug - All products:', data)
-                alert(`Found ${data.count} products. Check console for details.`)
-              } catch (error) {
-                console.error('Debug error:', error)
-              }
-            }}
-            variant="outline"
-            size="sm"
-          >
-            Debug DB
-          </Button>
-          
-          {/* Migration Button */}
-          <Button
-            onClick={async () => {
-              try {
-                const response = await fetch('/api/products?migrate=true')
-                const data = await response.json()
-                console.log('Migration result:', data)
-                alert(`Migration completed. Modified ${data.modifiedCount} products.`)
-                // Refresh the data after migration
-                await refreshData()
-              } catch (error) {
-                console.error('Migration error:', error)
-                alert('Migration failed. Check console for details.')
-              }
-            }}
-            variant="outline"
-            size="sm"
-          >
-            Fix HS Codes
-          </Button>
-          
-          {/* Test Button */}
-          <Button
-            onClick={async () => {
-              try {
-                const response = await fetch('/api/products?test=true')
-                const data = await response.json()
-                console.log('Test result:', data)
-                alert(data.message)
-              } catch (error) {
-                console.error('Test error:', error)
-                alert('Test failed. Check console for details.')
-              }
-            }}
-            variant="outline"
-            size="sm"
-          >
-            Test Model
-          </Button>
-          
-          {/* Remove SKU Button */}
-          <Button
-            onClick={async () => {
-              try {
-                const response = await fetch('/api/products?removeSku=true')
-                const data = await response.json()
-                console.log('SKU removal result:', data)
-                alert(`${data.message}. Modified ${data.modifiedCount} products. ${data.note}`)
-                // Refresh the data after migration
-                await refreshData()
-              } catch (error) {
-                console.error('SKU removal error:', error)
-                alert('SKU removal failed. Check console for details.')
-              }
-            }}
-            variant="outline"
-            size="sm"
-          >
-            Remove SKU
-          </Button>
-          
-          {/* Aggressive SKU Cleanup Button */}
-          <Button
-            onClick={async () => {
-              try {
-                const response = await fetch('/api/products?cleanupSku=true')
-                const data = await response.json()
-                console.log('Aggressive SKU cleanup result:', data)
-                alert(`${data.message}. Modified ${data.modifiedCount} products. ${data.note}`)
-                // Refresh the data after migration
-                await refreshData()
-              } catch (error) {
-                console.error('Aggressive SKU cleanup error:', error)
-                alert('Aggressive SKU cleanup failed. Check console for details.')
-              }
-            }}
-            variant="outline"
-            size="sm"
-          >
-            Cleanup SKU
-          </Button>
-          
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button
@@ -503,13 +403,21 @@ export default function ProductsPage() {
                     <Label htmlFor="supplier" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                       Supplier
                     </Label>
-                    <Input
-                      id="supplier"
+                    <Select
                       value={formData.supplier}
-                      onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                      className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                      required
-                    />
+                      onValueChange={(value) => setFormData({ ...formData, supplier: value })}
+                    >
+                      <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                        <SelectValue placeholder="Select a supplier" />
+                      </SelectTrigger>
+                      <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                        {suppliers.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.name}>
+                            {supplier.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -673,13 +581,21 @@ export default function ProductsPage() {
                 <Label htmlFor="edit-supplier" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                   Supplier
                 </Label>
-                <Input
-                  id="edit-supplier"
+                <Select
                   value={formData.supplier}
-                  onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                  required
-                />
+                  onValueChange={(value) => setFormData({ ...formData, supplier: value })}
+                >
+                  <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                    <SelectValue placeholder="Select a supplier" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.name}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -782,7 +698,7 @@ export default function ProductsPage() {
       {/* Products Table */}
       <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800 dark:border-gray-700 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">Products ({filteredProducts.length})</CardTitle>
+          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">Products Details ({filteredProducts.length})</CardTitle>
           <CardDescription className="text-gray-600 dark:text-gray-400">Manage your product inventory and stock levels</CardDescription>
         </CardHeader>
         <CardContent className="p-0">

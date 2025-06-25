@@ -128,6 +128,25 @@ export default async function handler(req, res) {
           }
         }
 
+        // Fix the null SKU product endpoint
+        if (req.query.fixNullSku === 'true') {
+          try {
+            // Find and fix the product with sku: null
+            const result = await Product.updateMany(
+              { sku: null },
+              { $set: { sku: `SKU_FIXED_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` } }
+            )
+            
+            return res.status(200).json({ 
+              message: "Fixed null SKU products", 
+              modifiedCount: result.modifiedCount
+            })
+          } catch (error) {
+            console.error("Fix null SKU error:", error)
+            return res.status(500).json({ message: "Fix null SKU failed", error: error.message })
+          }
+        }
+
         // Test endpoint to verify Product model
         if (req.query.test === 'true') {
           try {
@@ -202,6 +221,12 @@ export default async function handler(req, res) {
           { $unset: { hsCode: 1 } }
         )
         
+        // Fix the existing product with sku: null first
+        await Product.updateMany(
+          { sku: null },
+          { $set: { sku: `SKU_FIXED_${Date.now()}` } }
+        )
+        
         // Remove SKU field from existing products and drop SKU index
         await Product.updateMany(
           {},
@@ -211,10 +236,6 @@ export default async function handler(req, res) {
         // Ensure SKU is not included in the request body to avoid index conflicts
         const productData = { ...req.body }
         delete productData.sku // Remove SKU from the data being sent to MongoDB
-        
-        // Always generate a unique SKU to bypass the existing SKU index constraint
-        const uniqueSku = `SKU_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        productData.sku = uniqueSku
         
         const product = new Product(productData)
         await product.save()
