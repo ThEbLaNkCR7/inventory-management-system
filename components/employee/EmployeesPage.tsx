@@ -14,6 +14,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { NepaliDatePicker } from "@/components/ui/nepali-date-picker"
 import { formatNepaliDateForTable } from "@/lib/utils"
+import { toast } from "@/components/ui/use-toast"
+import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function EmployeesPage() {
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployee()
@@ -44,6 +47,9 @@ export default function EmployeesPage() {
   const [viewingImage, setViewingImage] = useState<{ src: string; alt: string } | null>(null)
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
 
   const filteredEmployees = employees.filter((employee) => {
     const matchesSearch =
@@ -57,42 +63,66 @@ export default function EmployeesPage() {
     return matchesSearch && matchesStatus
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
+    setProgress(0)
     
-    if (!formData.name.trim()) {
-      alert("Employee name is required")
-      return
-    }
-    
-    const employeeData = {
-      ...formData,
-      salary: formData.salary ? parseFloat(formData.salary) : 0,
-      status: formData.status as "active" | "inactive" | "on_leave",
-      email: formData.email || "Not provided",
-      phone: formData.phone || "Not provided",
-      position: formData.position || "Not specified",
-      department: formData.department || "Not assigned",
-      hireDate: formData.hireDate || new Date().toISOString().split('T')[0],
-      manager: formData.manager || "Not assigned",
-      address: formData.address || "Not provided",
-      emergencyContact: formData.emergencyContact || "Not provided",
-      emergencyPhone: formData.emergencyPhone || "Not provided",
-    }
+    try {
+      if (!formData.name.trim()) {
+        toast({ title: "Error", description: "Employee name is required", variant: "destructive" })
+        return
+      }
+      
+      updateProgress("Validating employee data...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const employeeData = {
+        ...formData,
+        salary: formData.salary ? parseFloat(formData.salary) : 0,
+        status: formData.status as "active" | "inactive" | "on_leave",
+        email: formData.email || "Not provided",
+        phone: formData.phone || "Not provided",
+        position: formData.position || "Not specified",
+        department: formData.department || "Not assigned",
+        hireDate: formData.hireDate || new Date().toISOString().split('T')[0],
+        manager: formData.manager || "Not assigned",
+        address: formData.address || "Not provided",
+        emergencyContact: formData.emergencyContact || "Not provided",
+        emergencyPhone: formData.emergencyPhone || "Not provided",
+      }
 
-    if (editingEmployee) {
-      updateEmployee(editingEmployee.id, employeeData)
-      setEditingEmployee(null)
+      updateProgress("Processing employee data...", 2, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      if (editingEmployee) {
+        updateProgress("Updating employee in database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateEmployee(editingEmployee.id, employeeData)
+        setEditingEmployee(null)
+      } else {
+        updateProgress("Adding employee to database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        addEmployee(employeeData)
+      }
+      
+      updateProgress("Operation completed!", 4, 4)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      toast({ title: "Success", description: editingEmployee ? "Employee updated successfully!" : "Employee added successfully!" })
       resetForm()
       setIsAddDialogOpen(false)
       setShowSuccessAlert(true)
-      setAlertMessage("Employee updated successfully!")
-    } else {
-      addEmployee(employeeData)
-      resetForm()
-      setIsAddDialogOpen(false)
-      setShowSuccessAlert(true)
-      setAlertMessage("Employee added successfully!")
+      setAlertMessage(editingEmployee ? "Employee updated successfully!" : "Employee added successfully!")
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save employee."
+      toast({ title: "Error", description: errorMessage, variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -115,9 +145,34 @@ export default function EmployeesPage() {
     setIsAddDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this employee?")) {
-      deleteEmployee(id)
+      setIsLoading(true)
+      setProgress(0)
+      
+      try {
+        updateProgress("Validating deletion...", 1, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateProgress("Removing employee from database...", 2, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        deleteEmployee(id)
+        
+        updateProgress("Operation completed!", 3, 3)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        toast({ title: "Success", description: "Employee deleted successfully!" })
+        setShowSuccessAlert(true)
+        setAlertMessage("Employee deleted successfully!")
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to delete employee."
+        toast({ title: "Error", description: errorMessage, variant: "destructive" })
+      } finally {
+        setIsLoading(false)
+        setProgress(0)
+        setCurrentStep("")
+      }
     }
   }
 
@@ -199,8 +254,47 @@ export default function EmployeesPage() {
     return formatNepaliDateForTable(dateString)
   }
 
+  const updateProgress = (step: string, current: number, total: number) => {
+    setCurrentStep(step)
+    setProgress((current / total) * 100)
+  }
+
   return (
     <div className="space-y-6 p-6">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Processing...
+              </h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>{currentStep}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              
+              <Progress value={progress} className="h-2" />
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Step {Math.ceil((progress / 100) * 4)} of 4
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success/Info Alert */}
+      {showSuccessAlert && (
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+          <div className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Employees</h1>

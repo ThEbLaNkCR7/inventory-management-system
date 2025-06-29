@@ -24,13 +24,10 @@ import {
 } from "lucide-react"
 import { exportToCSV, exportToExcel, exportMultipleSheetsAllFormats } from "@/utils/exportUtils"
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts"
+import { getCurrentNepaliYear, getNepaliYear, getNepaliMonth, getNepaliMonthName, formatDateForReports } from "@/lib/utils"
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
+  return formatDateForReports(dateString)
 }
 
 const SimpleTooltip = ({ active, payload, label }: any) => {
@@ -83,14 +80,14 @@ const MetricCard = ({ title, value, subtitle, icon: Icon, trend, color }: any) =
 
 export default function MonthlyYearlyReports() {
   const { getMonthlyData, getYearlyData, getSalesData, getPurchasesData } = useInventory()
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
-  const [selectedYearForDetails, setSelectedYearForDetails] = useState<number>(new Date().getFullYear())
+  const [selectedYear, setSelectedYear] = useState<number>(getCurrentNepaliYear())
+  const [selectedYearForDetails, setSelectedYearForDetails] = useState<number>(getCurrentNepaliYear())
 
   const monthlyData = getMonthlyData(selectedYear)
   const yearlyData = getYearlyData()
   const currentYearData = yearlyData.find((y) => y.year === selectedYearForDetails)
 
-  // Available years for selection
+  // Available years for selection (Nepali years)
   const availableYears = yearlyData.map((y) => y.year)
 
   // Simple monthly data for charts

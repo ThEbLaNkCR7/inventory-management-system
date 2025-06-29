@@ -12,13 +12,10 @@ import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip
 import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
+import { getCurrentNepaliYear, getNepaliYear, getNepaliMonth, formatDateForReports } from "@/lib/utils"
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
+  return formatDateForReports(dateString)
 }
 
 export default function ReportsPage() {
@@ -42,20 +39,22 @@ export default function ReportsPage() {
   const lowStockProducts = getLowStockProducts()
 
   // Calculate monthly data (simplified for demo)
-  const currentMonth = new Date().getMonth()
-  const currentYear = new Date().getFullYear()
+  const currentNepaliYear = getCurrentNepaliYear()
+  const currentNepaliMonth = getNepaliMonth(new Date().toISOString())
 
   const monthlySales = sales
     .filter((sale) => {
-      const saleDate = new Date(sale.saleDate)
-      return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear
+      const saleNepaliYear = getNepaliYear(sale.saleDate)
+      const saleNepaliMonth = getNepaliMonth(sale.saleDate)
+      return saleNepaliYear === currentNepaliYear && saleNepaliMonth === currentNepaliMonth
     })
     .reduce((total, sale) => total + sale.quantitySold * sale.salePrice, 0)
 
   const monthlyPurchases = purchases
     .filter((purchase) => {
-      const purchaseDate = new Date(purchase.purchaseDate)
-      return purchaseDate.getMonth() === currentMonth && purchaseDate.getFullYear() === currentYear
+      const purchaseNepaliYear = getNepaliYear(purchase.purchaseDate)
+      const purchaseNepaliMonth = getNepaliMonth(purchase.purchaseDate)
+      return purchaseNepaliYear === currentNepaliYear && purchaseNepaliMonth === currentNepaliMonth
     })
     .reduce((total, purchase) => total + purchase.quantityPurchased * purchase.purchasePrice, 0)
 
@@ -270,19 +269,26 @@ export default function ReportsPage() {
                   </TableHeader>
                   <TableBody>
                     {(() => {
-                      // Generate monthly data for the current year
-                      const currentYear = new Date().getFullYear()
+                      // Generate monthly data for the current Nepali year
+                      const currentNepaliYear = getCurrentNepaliYear()
+                      const nepaliMonths = [
+                        "Baisakh", "Jestha", "Asar", "Shrawan", "Bhadra", "Ashoj",
+                        "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"
+                      ]
                       const monthlyData = []
                       
-                      for (let month = 0; month < 12; month++) {
-                        const monthName = new Date(currentYear, month).toLocaleDateString('en-US', { month: 'long' })
+                      for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+                        const monthName = nepaliMonths[monthIndex]
+                        const monthNumber = monthIndex + 1 // Convert to 1-based month number
                         const monthSales = sales.filter(sale => {
-                          const saleDate = new Date(sale.saleDate)
-                          return saleDate.getFullYear() === currentYear && saleDate.getMonth() === month
+                          const saleNepaliYear = getNepaliYear(sale.saleDate)
+                          const saleNepaliMonth = getNepaliMonth(sale.saleDate)
+                          return saleNepaliYear === currentNepaliYear && saleNepaliMonth === monthNumber
                         })
                         const monthPurchases = purchases.filter(purchase => {
-                          const purchaseDate = new Date(purchase.purchaseDate)
-                          return purchaseDate.getFullYear() === currentYear && purchaseDate.getMonth() === month
+                          const purchaseNepaliYear = getNepaliYear(purchase.purchaseDate)
+                          const purchaseNepaliMonth = getNepaliMonth(purchase.purchaseDate)
+                          return purchaseNepaliYear === currentNepaliYear && purchaseNepaliMonth === monthNumber
                         })
                         
                         const totalSales = monthSales.reduce((sum, sale) => sum + (sale.quantitySold * sale.salePrice), 0)

@@ -19,7 +19,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Mail, Phone, Building, Edit, Trash2, Clock, CheckCircle, AlertTriangle } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Plus, Search, Mail, Phone, Building, Edit, Trash2, Clock, CheckCircle, AlertTriangle, Eye } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Select,
@@ -32,17 +33,30 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { formatNepaliDateForTable } from "@/lib/utils"
+import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
 
 export default function SuppliersPage() {
   const { user } = useAuth()
-  const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useInventory()
+  const { 
+    suppliers, 
+    addSupplier, 
+    updateSupplier, 
+    deleteSupplier,
+    getSupplierTotalSpent,
+    getSupplierOrderCount,
+    getSupplierLastOrder,
+    purchases
+  } = useInventory()
   const { submitChange } = useApproval()
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isSupplierHistoryDialogOpen, setIsSupplierHistoryDialogOpen] = useState(false)
+  const [selectedSupplierForHistory, setSelectedSupplierForHistory] = useState<string>("")
   const [editingSupplier, setEditingSupplier] = useState<any>(null)
+  const [viewingSupplier, setViewingSupplier] = useState<any>(null)
   const [deletingSupplier, setDeletingSupplier] = useState<any>(null)
   const [deleteReason, setDeleteReason] = useState("")
   const [formData, setFormData] = useState({
@@ -50,6 +64,7 @@ export default function SuppliersPage() {
     email: "",
     phone: "",
     company: "",
+    customCompany: "",
     address: "",
     status: "Active",
   })
@@ -76,6 +91,7 @@ export default function SuppliersPage() {
       email: "",
       phone: "",
       company: "",
+      customCompany: "",
       address: "",
       status: "Active",
     })
@@ -108,7 +124,15 @@ export default function SuppliersPage() {
         await new Promise(resolve => setTimeout(resolve, 500))
         
         updateProgress("Setting up supplier profile...", 3, 4)
-        await addSupplier({ ...formData, orders: 0, totalSpent: 0, lastOrder: new Date().toISOString().split('T')[0] })
+        const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+        const { customCompany, ...supplierData } = formData
+        await addSupplier({ 
+          ...supplierData, 
+          company: companyName,
+          orders: 0, 
+          totalSpent: 0, 
+          lastOrder: new Date().toISOString().split('T')[0] 
+        })
         
         updateProgress("Operation completed!", 4, 4)
         await new Promise(resolve => setTimeout(resolve, 300))
@@ -135,11 +159,14 @@ export default function SuppliersPage() {
   }
 
   const submitForApproval = () => {
+    const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+    const { customCompany, ...supplierData } = formData
     submitChange({
       type: "supplier",
       action: "create",
       proposedData: {
-        ...formData,
+        ...supplierData,
+        company: companyName,
         orders: 0,
         totalSpent: 0,
         lastOrder: new Date().toISOString().split('T')[0],
@@ -161,6 +188,7 @@ export default function SuppliersPage() {
       email: supplier.email,
       phone: supplier.phone,
       company: supplier.company,
+      customCompany: supplier.customCompany,
       address: supplier.address,
       status: supplier.status,
     })
@@ -182,7 +210,9 @@ export default function SuppliersPage() {
           await new Promise(resolve => setTimeout(resolve, 500))
           
           updateProgress("Refreshing supplier data...", 3, 4)
-          await updateSupplier(editingSupplier.id, formData)
+          const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+          const { customCompany, ...supplierData } = formData
+          await updateSupplier(editingSupplier.id, { ...supplierData, company: companyName })
           
           updateProgress("Operation completed!", 4, 4)
           await new Promise(resolve => setTimeout(resolve, 300))
@@ -199,7 +229,24 @@ export default function SuppliersPage() {
           await new Promise(resolve => setTimeout(resolve, 500))
           
           updateProgress("Submitting for approval...", 3, 3)
-          submitChange({ type: "supplier", action: "update", entityId: editingSupplier.id, originalData: { name: editingSupplier.name, email: editingSupplier.email, phone: editingSupplier.phone, company: editingSupplier.company, address: editingSupplier.address, status: editingSupplier.status, }, proposedData: formData, requestedBy: user?.email || "", reason: approvalReason, })
+          const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+          const { customCompany, ...supplierData } = formData
+          submitChange({ 
+            type: "supplier", 
+            action: "update", 
+            entityId: editingSupplier.id, 
+            originalData: { 
+              name: editingSupplier.name, 
+              email: editingSupplier.email, 
+              phone: editingSupplier.phone, 
+              company: editingSupplier.company, 
+              address: editingSupplier.address, 
+              status: editingSupplier.status, 
+            }, 
+            proposedData: { ...supplierData, company: companyName }, 
+            requestedBy: user?.email || "", 
+            reason: approvalReason, 
+          })
           toast({ title: "Submitted", description: "Supplier changes submitted for admin approval." })
         }
         resetForm()
@@ -221,6 +268,16 @@ export default function SuppliersPage() {
   const handleDelete = (supplier: any) => {
     setDeletingSupplier(supplier)
     setIsDeleteDialogOpen(true)
+  }
+
+  const handleView = (supplier: any) => {
+    setViewingSupplier(supplier)
+    setIsViewDialogOpen(true)
+  }
+
+  const handleSupplierClick = (supplier: any) => {
+    setSelectedSupplierForHistory(supplier.name)
+    setIsSupplierHistoryDialogOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
@@ -365,13 +422,35 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="company">Company</Label>
-                  <Input
-                    id="company"
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    required
-                  />
+                  <Label htmlFor="company">Company Type</Label>
+                  <div className="space-y-2">
+                    <Select
+                      value={formData.company}
+                      onValueChange={(value) => setFormData({ ...formData, company: value })}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select company type or enter custom type" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        <SelectItem value="custom">+ Add Custom Company Type</SelectItem>
+                        {[...new Set(suppliers.map(supplier => supplier.company))].map((company) => (
+                          <SelectItem key={company} value={company}>
+                            {company}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formData.company === "custom" && (
+                      <Input
+                        placeholder="Enter custom company type"
+                        value={formData.customCompany || ""}
+                        onChange={(e) => setFormData({ ...formData, customCompany: e.target.value })}
+                        className="mt-2"
+                        required
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address">Address</Label>
@@ -467,72 +546,67 @@ export default function SuppliersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Address</TableHead>
+                  <TableHead>Supplier Name</TableHead>
+                  <TableHead>Company Type</TableHead>
                   <TableHead>Contact</TableHead>
-                  <TableHead>Orders</TableHead>
                   <TableHead>Total Spent</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Order</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredSuppliers.map((supplier) => (
                   <TableRow key={supplier.id}>
-                    <TableCell className="font-medium">{supplier.name}</TableCell>
                     <TableCell>
-                      <div className="flex items-center">
-                        <Building className="h-4 w-4 mr-2 text-gray-400" />
-                        {supplier.company}
+                      <div className="space-y-1">
+                        <p 
+                          className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                          onClick={() => handleSupplierClick(supplier)}
+                        >
+                          {supplier.name}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {getSupplierOrderCount(supplier.name)} orders
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center">
                         <Building className="h-4 w-4 mr-2 text-gray-400" />
-                        {supplier.address}
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{supplier.company}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center text-sm">
                           <Mail className="h-4 w-4 mr-2 text-gray-400" />
-                          {supplier.email}
+                          <span className="text-gray-700 dark:text-gray-300">{supplier.email}</span>
                         </div>
                         <div className="flex items-center text-sm">
                           <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                          {supplier.phone}
+                          <span className="text-gray-700 dark:text-gray-300">{supplier.phone}</span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {supplier.orders || Math.floor(Math.random() * 50) + 1}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        Rs {(supplier.totalSpent || Math.random() * 10000 + 1000).toFixed(2)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        supplier.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                        supplier.status === 'Inactive' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
-                        supplier.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {supplier.status || 'Active'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {formatNepaliDateForTable(supplier.lastOrder || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString())}
-                      </span>
+                      <div className="space-y-1">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 text-lg">
+                          Rs {getSupplierTotalSpent(supplier.name).toLocaleString()}
+                        </span>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Last: {getSupplierLastOrder(supplier.name) ? formatNepaliDateForTable(getSupplierLastOrder(supplier.name)!) : 'No orders'}
+                        </p>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="neutralOutline"
+                          onClick={() => handleView(supplier)}
+                          className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="neutralOutline"
@@ -563,6 +637,177 @@ export default function SuppliersPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* View Supplier Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                <Eye className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span>Supplier Details</span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Complete information about the selected supplier
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingSupplier && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Basic Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Contact Name</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingSupplier.name}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Company Type</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingSupplier.company}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Status</Label>
+                    <Badge 
+                      variant="secondary"
+                      className={`px-3 py-1 text-sm font-medium ${
+                        viewingSupplier.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-400' :
+                        viewingSupplier.status === 'Inactive' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-400' :
+                        viewingSupplier.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-400' :
+                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-400'
+                      }`}
+                    >
+                      {viewingSupplier.status || 'Active'}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Supplier ID</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-mono text-base">{viewingSupplier.id}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Contact Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Email</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingSupplier.email}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Phone</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingSupplier.phone}</p>
+                  </div>
+                  <div className="space-y-2 lg:col-span-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Address</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                      {viewingSupplier.address || "Address not specified"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Business Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span>Business Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Orders</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {getSupplierOrderCount(viewingSupplier.name)} orders
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Spent</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-blue-600 dark:text-blue-400">
+                      Rs {getSupplierTotalSpent(viewingSupplier.name).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Last Order</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {getSupplierLastOrder(viewingSupplier.name) ? formatNepaliDateForTable(getSupplierLastOrder(viewingSupplier.name)!) : 'No orders yet'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                  <span>Timestamps</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Created</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {formatNepaliDateForTable(viewingSupplier.createdAt)}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Last Updated</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {formatNepaliDateForTable(viewingSupplier.updatedAt || viewingSupplier.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>Status</span>
+                </h3>
+                <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-4 h-4 rounded-full ${viewingSupplier.isActive !== false ? "bg-green-500" : "bg-red-500"}`}></div>
+                    <span className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {viewingSupplier.isActive !== false ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 px-4 py-2 text-sm font-medium">
+                    Verified Supplier
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="neutralOutline" 
+              onClick={() => setIsViewDialogOpen(false)}
+              className="px-6 py-2"
+            >
+              Close
+            </Button>
+            <Button 
+              type="button" 
+              onClick={() => {
+                setIsViewDialogOpen(false)
+                handleEdit(viewingSupplier)
+              }}
+              className="px-6 py-2"
+            >
+              Edit Supplier
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Supplier Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -611,13 +856,35 @@ export default function SuppliersPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-company">Company</Label>
-              <Input
-                id="edit-company"
-                value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                required
-              />
+              <Label htmlFor="edit-company">Company Type</Label>
+              <div className="space-y-2">
+                <Select
+                  value={formData.company}
+                  onValueChange={(value) => setFormData({ ...formData, company: value })}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company type or enter custom type" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    <SelectItem value="custom">+ Add Custom Company Type</SelectItem>
+                    {[...new Set(suppliers.map(supplier => supplier.company))].map((company) => (
+                      <SelectItem key={company} value={company}>
+                        {company}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.company === "custom" && (
+                  <Input
+                    placeholder="Enter custom company type"
+                    value={formData.customCompany || ""}
+                    onChange={(e) => setFormData({ ...formData, customCompany: e.target.value })}
+                    className="mt-2"
+                    required
+                  />
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-address">Address</Label>
@@ -728,6 +995,130 @@ export default function SuppliersPage() {
                 {user?.role === "admin" ? "Delete Supplier" : "Submit for Approval"}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Supplier Transaction History Dialog */}
+      <Dialog open={isSupplierHistoryDialogOpen} onOpenChange={setIsSupplierHistoryDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                <svg className="h-6 w-6 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <span>Supplier Transaction History</span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              All transactions with <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedSupplierForHistory}</span> in {getCurrentNepaliYear()}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedSupplierForHistory && (
+            <div className="space-y-6">
+              {/* Supplier Summary */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span>Supplier Summary</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Supplier Name</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{selectedSupplierForHistory}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Purchases</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).length} transactions
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Quantity</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).reduce((sum, p) => sum + p.quantityPurchased, 0)} units
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Value</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-orange-600 dark:text-orange-400">
+                      Rs {purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).reduce((sum, p) => sum + (p.quantityPurchased * p.purchasePrice), 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Purchase Transactions */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Purchase Transactions ({purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).length})</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-100 dark:bg-gray-700">
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const currentYear = getCurrentNepaliYear()
+                        const supplierPurchases = purchases.filter(purchase => 
+                          purchase.supplier === selectedSupplierForHistory && 
+                          getNepaliYear(purchase.purchaseDate) === currentYear
+                        ).sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+                        
+                        return supplierPurchases.length > 0 ? (
+                          supplierPurchases.map((purchase) => (
+                            <TableRow key={purchase.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {formatNepaliDateForTable(purchase.purchaseDate)}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                {purchase.productName}
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {purchase.quantityPurchased} units
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                Rs {purchase.purchasePrice.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="font-semibold text-blue-600 dark:text-blue-400">
+                                Rs {(purchase.quantityPurchased * purchase.purchasePrice).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              No purchase transactions found for this supplier in {currentYear}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="neutralOutline" 
+              onClick={() => setIsSupplierHistoryDialogOpen(false)}
+              className="px-6 py-2"
+            >
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

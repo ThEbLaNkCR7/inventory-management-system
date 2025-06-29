@@ -5,6 +5,7 @@ import { InventoryProvider } from "@/contexts/InventoryContext"
 import { BatchProvider } from "@/contexts/BatchContext"
 import { ApprovalProvider } from "@/contexts/ApprovalContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
+import { NotificationProvider } from "@/contexts/NotificationContext"
 import "./globals.css"
 
 const outfit = Outfit({ 
@@ -26,7 +27,11 @@ export default function RootLayout({
           <AuthProvider>
             <InventoryProvider>
               <BatchProvider>
-                <ApprovalProvider>{children}</ApprovalProvider>
+                <ApprovalProvider>
+                  <NotificationProvider>
+                    {children}
+                  </NotificationProvider>
+                </ApprovalProvider>
               </BatchProvider>
             </InventoryProvider>
           </AuthProvider>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Building2, Plus, Search, Edit, Trash2, Users, DollarSign, MapPin } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Progress } from "@/components/ui/progress"
+import { useToast } from "@/hooks/use-toast"
 
 export default function DepartmentsPage() {
   const { departments, employees, addDepartment, updateDepartment, deleteDepartment } = useEmployee()
@@ -22,6 +26,10 @@ export default function DepartmentsPage() {
   })
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
+  const { toast } = useToast()
 
   const filteredDepartments = departments.filter((department) =>
     department.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,27 +47,57 @@ export default function DepartmentsPage() {
     return totalSalary / deptEmployees.length
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const departmentData = {
-      ...formData,
-      budget: parseFloat(formData.budget),
-      employeeCount: getEmployeeCount(formData.name),
-    }
+  const updateProgress = (step: string, current: number, total: number) => {
+    setCurrentStep(step)
+    setProgress((current / total) * 100)
+  }
 
-    if (editingDepartment) {
-      updateDepartment(editingDepartment.id, departmentData)
-      setEditingDepartment(null)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      updateProgress("Validating department data...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const departmentData = {
+        ...formData,
+        budget: parseFloat(formData.budget),
+        employeeCount: getEmployeeCount(formData.name),
+      }
+
+      updateProgress("Processing department data...", 2, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      if (editingDepartment) {
+        updateProgress("Updating department in database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateDepartment(editingDepartment.id, departmentData)
+        setEditingDepartment(null)
+      } else {
+        updateProgress("Adding department to database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        addDepartment(departmentData)
+      }
+      
+      updateProgress("Operation completed!", 4, 4)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      toast({ title: "Success", description: editingDepartment ? "Department updated successfully!" : "Department added successfully!" })
       resetForm()
       setIsAddDialogOpen(false)
       setShowSuccessAlert(true)
-      setAlertMessage("Department updated successfully!")
-    } else {
-      addDepartment(departmentData)
-      resetForm()
-      setIsAddDialogOpen(false)
-      setShowSuccessAlert(true)
-      setAlertMessage("Department added successfully!")
+      setAlertMessage(editingDepartment ? "Department updated successfully!" : "Department added successfully!")
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save department."
+      toast({ title: "Error", description: errorMessage, variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -74,9 +112,34 @@ export default function DepartmentsPage() {
     setIsAddDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this department?")) {
-      deleteDepartment(id)
+      setIsLoading(true)
+      setProgress(0)
+      
+      try {
+        updateProgress("Validating deletion...", 1, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateProgress("Removing department from database...", 2, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        deleteDepartment(id)
+        
+        updateProgress("Operation completed!", 3, 3)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        toast({ title: "Success", description: "Department deleted successfully!" })
+        setShowSuccessAlert(true)
+        setAlertMessage("Department deleted successfully!")
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to delete department."
+        toast({ title: "Error", description: errorMessage, variant: "destructive" })
+      } finally {
+        setIsLoading(false)
+        setProgress(0)
+        setCurrentStep("")
+      }
     }
   }
 
@@ -91,6 +154,40 @@ export default function DepartmentsPage() {
 
   return (
     <div className="space-y-6 p-6">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Processing...
+              </h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>{currentStep}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              
+              <Progress value={progress} className="h-2" />
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Step {Math.ceil((progress / 100) * 4)} of 4
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success/Info Alert */}
+      {showSuccessAlert && (
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+          <div className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Departments</h1>

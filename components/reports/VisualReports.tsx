@@ -4,9 +4,9 @@ import { useInventory } from "@/contexts/InventoryContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Download, TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart, Info } from "lucide-react"
+import { Download, TrendingUp, TrendingDown, DollarSign, Package, ShoppingCart, Info, BarChart3, AlertTriangle, Users, Truck, Calendar } from "lucide-react"
 import {
-  BarChart,
+  BarChart as RechartsBarChart,
   Bar,
   XAxis,
   YAxis,
@@ -20,6 +20,7 @@ import {
   Line,
   Legend,
 } from "recharts"
+import { getCurrentNepaliYear, getNepaliYear, getNepaliMonth } from "@/lib/utils"
 
 // Simple, neutral colors for better readability
 const CHART_COLORS = {
@@ -84,14 +85,14 @@ export default function VisualReports() {
   const totalProfit = getProfit()
   const totalProducts = products.length
 
-  // Simple monthly data for trends
+  // Simple monthly data for trends (using Nepali months)
   const monthlyData = [
-    { month: "Jan", sales: 45000, purchases: 32000, profit: 13000 },
-    { month: "Feb", sales: 52000, purchases: 38000, profit: 14000 },
-    { month: "Mar", sales: 48000, purchases: 35000, profit: 13000 },
-    { month: "Apr", sales: 61000, purchases: 42000, profit: 19000 },
-    { month: "May", sales: 55000, purchases: 40000, profit: 15000 },
-    { month: "Jun", sales: 67000, purchases: 45000, profit: 22000 },
+    { month: "Baisakh", sales: 45000, purchases: 32000, profit: 13000 },
+    { month: "Jestha", sales: 52000, purchases: 38000, profit: 14000 },
+    { month: "Asar", sales: 48000, purchases: 35000, profit: 13000 },
+    { month: "Shrawan", sales: 61000, purchases: 42000, profit: 19000 },
+    { month: "Bhadra", sales: 55000, purchases: 40000, profit: 15000 },
+    { month: "Ashoj", sales: 67000, purchases: 45000, profit: 22000 },
   ]
 
   // Simple category breakdown
@@ -241,7 +242,7 @@ export default function VisualReports() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={categoryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <RechartsBarChart data={categoryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="name" 
@@ -262,7 +263,7 @@ export default function VisualReports() {
                     <Cell key={`cell-${index}`} fill={entry.fill} />
                   ))}
                 </Bar>
-              </BarChart>
+              </RechartsBarChart>
             </ResponsiveContainer>
             
             {/* Category Summary */}
@@ -295,7 +296,7 @@ export default function VisualReports() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={topProducts} layout="horizontal" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+              <RechartsBarChart data={topProducts} layout="horizontal" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis
                   type="number"
@@ -315,7 +316,7 @@ export default function VisualReports() {
                   labelFormatter={(label) => `Product: ${label}`}
                 />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]} fill={CHART_COLORS.neutral} />
-              </BarChart>
+              </RechartsBarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

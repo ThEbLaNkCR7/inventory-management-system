@@ -43,6 +43,17 @@ const clientSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    totalSpent: {
+      type: Number,
+      default: 0,
+    },
+    orders: {
+      type: Number,
+      default: 0,
+    },
+    lastOrder: {
+      type: Date,
+    },
     isActive: {
       type: Boolean,
       default: true,

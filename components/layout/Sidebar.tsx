@@ -2,17 +2,36 @@
 
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
-import { Home, Package, ShoppingCart, TrendingUp, Users, Truck, BarChart3, X, CheckCircle, ChevronLeft } from "lucide-react"
+import { Home, Package, ShoppingCart, TrendingUp, Users, Truck, BarChart3, X, CheckCircle, ChevronLeft, Menu, DollarSign } from "lucide-react"
+import { useEffect, useState } from "react"
 
 interface SidebarProps {
   activeTab: string
   setActiveTab: (tab: string) => void
   isOpen: boolean
   setIsOpen: (open: boolean) => void
+  isMobile: boolean
 }
 
-export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isMobile }: SidebarProps) {
   const { user } = useAuth()
+  const [isMobileState, setIsMobileState] = useState(false)
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobileState(window.innerWidth < 1024) // lg breakpoint
+      
+      // Auto-close sidebar on mobile when screen size changes
+      if (window.innerWidth < 1024 && isOpen) {
+        setIsOpen(false)
+      }
+    }
+
+    checkScreenSize()
+    window.addEventListener('resize', checkScreenSize)
+    return () => window.removeEventListener('resize', checkScreenSize)
+  }, [isOpen, setIsOpen])
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: Home, adminOnly: false },
@@ -25,49 +44,75 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: 
     { id: "suppliers", label: "Suppliers", icon: Truck, adminOnly: false },
     { id: "approvals", label: "Approvals", icon: CheckCircle, adminOnly: true },
     { id: "reports", label: "Reports", icon: BarChart3, adminOnly: true },
-
+    { id: "payments", label: "Payments", icon: DollarSign, adminOnly: false },
   ]
 
   const filteredMenuItems = menuItems.filter((item) => !item.adminOnly || user?.role === "admin")
 
+  const handleMenuItemClick = (itemId: string) => {
+    setActiveTab(itemId)
+    // Close sidebar on mobile after menu item click
+    if (isMobileState) {
+      setIsOpen(false)
+    }
+  }
+
   return (
     <>
       {/* Mobile overlay */}
-      {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" onClick={() => setIsOpen(false)} />
+      {isOpen && isMobileState && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
+          onClick={() => setIsOpen(false)}
+        />
       )}
 
       {/* Sidebar */}
       <div
         className={`
-        fixed inset-y-0 left-0 z-50 w-64 shadow-2xl transform transition-transform duration-300 ease-in-out
-        ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        bg-gray-900 dark:bg-gray-950 flex flex-col
-      `}
+          fixed inset-y-0 left-0 z-50 w-64 shadow-2xl transform transition-transform duration-300 ease-in-out
+          bg-gray-900 dark:bg-gray-950 flex flex-col
+          ${isMobileState 
+            ? (isOpen ? "translate-x-0" : "-translate-x-full") 
+            : (isOpen ? "translate-x-0" : "-translate-x-full")
+          }
+        `}
       >
         {/* Header - Fixed */}
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-700 dark:border-gray-600 flex-shrink-0">
-          <h1 className="text-xl font-bold text-white">
-            Sheel Inventory Pro
-          </h1>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden text-gray-300 hover:text-white hover:bg-gray-700 dark:hover:bg-gray-600"
-              onClick={() => setIsOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-700 dark:border-gray-600 flex-shrink-0">
+          {/* Animated Title */}
+          <div className={`flex-1 transition-all duration-700 ease-in-out pr-2 ${
+            !isMobile && isOpen 
+              ? 'opacity-100 scale-100 transform translate-x-0 delay-200' 
+              : 'opacity-0 scale-95 transform translate-x-16'
+          }`}>
+            <h1 className="text-responsive-xl font-bold text-white truncate">
+              Sheel Inventory
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Mobile close button */}
+            {isMobileState && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-gray-300 hover:text-white hover:bg-gray-700 dark:hover:bg-gray-600 h-8 w-8"
+                onClick={() => setIsOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
             {/* Desktop collapse button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hidden lg:inline-flex text-gray-300 hover:text-white hover:bg-gray-700 dark:hover:bg-gray-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
-              onClick={() => setIsOpen(false)}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
+            {!isMobileState && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-gray-300 hover:text-white hover:bg-gray-700 dark:hover:bg-gray-600 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 h-8 w-8"
+                onClick={() => setIsOpen(false)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -85,13 +130,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }: 
                       ? "text-white shadow-lg bg-gray-700 hover:bg-gray-600"
                       : "text-gray-300 hover:text-white hover:bg-gray-700 dark:hover:bg-gray-600"
                   }`}
-                  onClick={() => {
-                    setActiveTab(item.id)
-                    // Only close sidebar on mobile
-                    if (window.innerWidth < 1024) {
-                      setIsOpen(false)
-                    }
-                  }}
+                  onClick={() => handleMenuItemClick(item.id)}
                 >
                   <Icon className="mr-3 h-5 w-5" />
                   {item.label}

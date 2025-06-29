@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DollarSign, Plus, Search, Edit, Trash2, Calendar, User, TrendingUp, TrendingDown } from "lucide-react"
+import { NepaliDatePicker } from '../ui/nepali-date-picker'
+import { formatNepaliDateForTable } from '../../lib/nepaliDateUtils'
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Progress } from "@/components/ui/progress"
+import { useToast } from "@/hooks/use-toast"
 
 interface SalaryRecord {
   id: string
@@ -38,6 +43,12 @@ export default function MonthlySalaryPage() {
   
   // Mock salary data - in real app, this would come from context/API
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([])
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
+  const [alertMessage, setAlertMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
+  const { toast } = useToast()
 
   const [formData, setFormData] = useState({
     employeeId: "",
@@ -64,47 +75,85 @@ export default function MonthlySalaryPage() {
     return basic + allowances + overtime + bonus - deductions
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const updateProgress = (step: string, current: number, total: number) => {
+    setCurrentStep(step)
+    setProgress((current / total) * 100)
+  }
+
+  const updateSalary = (id: string, data: SalaryRecord) => {
+    setSalaryRecords(prev => prev.map(record => record.id === id ? data : record))
+  }
+
+  const addSalary = (data: SalaryRecord) => {
+    setSalaryRecords(prev => [...prev, data])
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const basicSalary = parseFloat(formData.basicSalary)
-    const allowances = parseFloat(formData.allowances)
-    const deductions = parseFloat(formData.deductions)
-    const overtime = parseFloat(formData.overtime)
-    const bonus = parseFloat(formData.bonus)
-    const netSalary = calculateNetSalary(basicSalary, allowances, deductions, overtime, bonus)
-
-    const employee = employees.find(emp => emp.id === formData.employeeId)
+    setIsLoading(true)
+    setProgress(0)
     
-    const salaryData: SalaryRecord = {
-      id: editingSalary?.id || Date.now().toString(),
-      employeeId: formData.employeeId,
-      employeeName: employee?.name || "",
-      month: formData.month,
-      year: formData.year,
-      basicSalary,
-      allowances,
-      deductions,
-      overtime,
-      bonus,
-      netSalary,
-      paymentStatus: formData.paymentStatus,
-      paymentDate: formData.paymentDate || undefined,
-      notes: formData.notes
-    }
+    try {
+      updateProgress("Validating salary data...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const bonus = parseFloat(formData.bonus)
+      const netSalary = calculateNetSalary(
+        parseFloat(formData.basicSalary),
+        parseFloat(formData.allowances),
+        parseFloat(formData.deductions),
+        parseFloat(formData.overtime),
+        bonus
+      )
 
-    if (editingSalary) {
-      updateSalary(editingSalary.id, salaryData)
-      setEditingSalary(null)
+      const salaryData: SalaryRecord = {
+        id: editingSalary?.id || Date.now().toString(),
+        employeeId: formData.employeeId,
+        employeeName: employees.find(emp => emp.id === formData.employeeId)?.name || "Unknown",
+        month: formData.month,
+        year: formData.year,
+        basicSalary: parseFloat(formData.basicSalary),
+        allowances: parseFloat(formData.allowances),
+        deductions: parseFloat(formData.deductions),
+        overtime: parseFloat(formData.overtime),
+        bonus,
+        netSalary,
+        paymentStatus: formData.paymentStatus,
+        paymentDate: formData.paymentDate || undefined,
+        notes: formData.notes
+      }
+
+      updateProgress("Processing salary data...", 2, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      if (editingSalary) {
+        updateProgress("Updating salary record in database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateSalary(editingSalary.id, salaryData)
+        setEditingSalary(null)
+      } else {
+        updateProgress("Adding salary record to database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        addSalary(salaryData)
+      }
+      
+      updateProgress("Operation completed!", 4, 4)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      toast({ title: "Success", description: editingSalary ? "Salary record updated successfully!" : "Salary record added successfully!" })
       resetForm()
       setIsAddDialogOpen(false)
       setShowSuccessAlert(true)
-      setAlertMessage("Salary record updated successfully!")
-    } else {
-      addSalary(salaryData)
-      resetForm()
-      setIsAddDialogOpen(false)
-      setShowSuccessAlert(true)
-      setAlertMessage("Salary record added successfully!")
+      setAlertMessage(editingSalary ? "Salary record updated successfully!" : "Salary record added successfully!")
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save salary record."
+      toast({ title: "Error", description: errorMessage, variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -126,9 +175,34 @@ export default function MonthlySalaryPage() {
     setIsAddDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this salary record?")) {
-      setSalaryRecords(prev => prev.filter(record => record.id !== id))
+      setIsLoading(true)
+      setProgress(0)
+      
+      try {
+        updateProgress("Validating deletion...", 1, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateProgress("Removing salary record from database...", 2, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        setSalaryRecords(prev => prev.filter(record => record.id !== id))
+        
+        updateProgress("Operation completed!", 3, 3)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        toast({ title: "Success", description: "Salary record deleted successfully!" })
+        setShowSuccessAlert(true)
+        setAlertMessage("Salary record deleted successfully!")
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to delete salary record."
+        toast({ title: "Error", description: errorMessage, variant: "destructive" })
+      } finally {
+        setIsLoading(false)
+        setProgress(0)
+        setCurrentStep("")
+      }
     }
   }
 
@@ -175,6 +249,40 @@ export default function MonthlySalaryPage() {
 
   return (
     <div className="space-y-6 p-6">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Processing...
+              </h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>{currentStep}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              
+              <Progress value={progress} className="h-2" />
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Step {Math.ceil((progress / 100) * 4)} of 4
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success/Info Alert */}
+      {showSuccessAlert && (
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+          <div className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Monthly Salary Details</h1>
@@ -301,11 +409,10 @@ export default function MonthlySalaryPage() {
                 </div>
                 <div>
                   <Label htmlFor="paymentDate">Payment Date</Label>
-                  <Input
-                    id="paymentDate"
-                    type="date"
+                  <NepaliDatePicker
                     value={formData.paymentDate}
-                    onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
+                    onChange={(date) => setFormData({ ...formData, paymentDate: date })}
+                    label="Payment Date"
                   />
                 </div>
               </div>

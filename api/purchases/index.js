@@ -52,7 +52,19 @@ export default async function handler(req, res) {
       break
     case 'POST':
       try {
-        const purchase = new Purchase(req.body)
+        const purchaseData = req.body
+        
+        // Calculate total amount and set payment defaults
+        const totalAmount = purchaseData.quantityPurchased * purchaseData.purchasePrice
+        const purchase = new Purchase({
+          ...purchaseData,
+          totalAmount,
+          paidAmount: 0,
+          paymentStatus: "Pending",
+          dueDate: purchaseData.dueDate || null,
+          paymentTerms: purchaseData.paymentTerms || "Immediate"
+        })
+        
         await purchase.save()
         res.status(201).json(purchase)
       } catch (error) {

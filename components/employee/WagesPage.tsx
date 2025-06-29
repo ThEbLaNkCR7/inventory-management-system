@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DollarSign, Plus, Search, Edit, Trash2, Clock, User, Calendar, TrendingUp } from "lucide-react"
 import { formatNepaliDateForTable } from "@/lib/utils"
+import { NepaliDatePicker } from '../ui/nepali-date-picker'
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Progress } from "@/components/ui/progress"
+import { useToast } from "@/hooks/use-toast"
 
 interface WageRecord {
   id: string
@@ -36,6 +40,12 @@ export default function WagesPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingWage, setEditingWage] = useState<WageRecord | null>(null)
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
+  const [alertMessage, setAlertMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
+  const { toast } = useToast()
   
   // Mock wage data - in real app, this would come from context/API
   const [wageRecords, setWageRecords] = useState<WageRecord[]>([])
@@ -67,49 +77,83 @@ export default function WagesPage() {
     return { regularWage, overtimeWage, totalWage: regularWage + overtimeWage }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const updateProgress = (step: string, current: number, total: number) => {
+    setCurrentStep(step)
+    setProgress((current / total) * 100)
+  }
+
+  const updateWage = (id: string, data: WageRecord) => {
+    setWageRecords(prev => prev.map(record => record.id === id ? data : record))
+  }
+
+  const addWage = (data: WageRecord) => {
+    setWageRecords(prev => [...prev, data])
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const regularHours = parseFloat(formData.regularHours)
-    const overtimeHours = parseFloat(formData.overtimeHours)
-    const hourlyRate = parseFloat(formData.hourlyRate)
-    const overtimeRate = parseFloat(formData.overtimeRate)
+    setIsLoading(true)
+    setProgress(0)
     
-    const { regularWage, overtimeWage, totalWage } = calculateWages(regularHours, overtimeHours, hourlyRate, overtimeRate)
+    try {
+      updateProgress("Validating wage data...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const { regularWage, overtimeWage, totalWage } = calculateWages(
+        parseFloat(formData.regularHours),
+        parseFloat(formData.overtimeHours),
+        parseFloat(formData.hourlyRate),
+        parseFloat(formData.overtimeRate)
+      )
 
-    const employee = employees.find(emp => emp.id === formData.employeeId)
-    
-    const wageData: WageRecord = {
-      id: editingWage?.id || Date.now().toString(),
-      employeeId: formData.employeeId,
-      employeeName: employee?.name || "",
-      date: formData.date,
-      regularHours,
-      overtimeHours,
-      hourlyRate,
-      overtimeRate,
-      regularWage,
-      overtimeWage,
-      totalWage,
-      paymentStatus: formData.paymentStatus,
-      paymentDate: formData.paymentDate || undefined,
-      notes: formData.notes
-    }
+      const wageData: WageRecord = {
+        id: editingWage?.id || Date.now().toString(),
+        employeeId: formData.employeeId,
+        employeeName: employees.find(emp => emp.id === formData.employeeId)?.name || "Unknown",
+        date: formData.date,
+        regularHours: parseFloat(formData.regularHours),
+        overtimeHours: parseFloat(formData.overtimeHours),
+        hourlyRate: parseFloat(formData.hourlyRate),
+        overtimeRate: parseFloat(formData.overtimeRate),
+        regularWage,
+        overtimeWage,
+        totalWage,
+        paymentStatus: formData.paymentStatus,
+        paymentDate: formData.paymentDate || undefined,
+        notes: formData.notes
+      }
 
-    if (editingWage) {
-      setWageRecords(prev => prev.map(record => 
-        record.id === editingWage.id ? wageData : record
-      ))
-      setEditingWage(null)
+      updateProgress("Processing wage data...", 2, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      if (editingWage) {
+        updateProgress("Updating wage record in database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateWage(editingWage.id, wageData)
+        setEditingWage(null)
+      } else {
+        updateProgress("Adding wage record to database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        addWage(wageData)
+      }
+      
+      updateProgress("Operation completed!", 4, 4)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      toast({ title: "Success", description: editingWage ? "Wage record updated successfully!" : "Wage record added successfully!" })
       resetForm()
       setIsAddDialogOpen(false)
       setShowSuccessAlert(true)
-      setAlertMessage("Wage record updated successfully!")
-    } else {
-      setWageRecords(prev => [...prev, wageData])
-      resetForm()
-      setIsAddDialogOpen(false)
-      setShowSuccessAlert(true)
-      setAlertMessage("Wage record added successfully!")
+      setAlertMessage(editingWage ? "Wage record updated successfully!" : "Wage record added successfully!")
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save wage record."
+      toast({ title: "Error", description: errorMessage, variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -129,9 +173,34 @@ export default function WagesPage() {
     setIsAddDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this wage record?")) {
-      setWageRecords(prev => prev.filter(record => record.id !== id))
+      setIsLoading(true)
+      setProgress(0)
+      
+      try {
+        updateProgress("Validating deletion...", 1, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateProgress("Removing wage record from database...", 2, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        setWageRecords(prev => prev.filter(record => record.id !== id))
+        
+        updateProgress("Operation completed!", 3, 3)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        toast({ title: "Success", description: "Wage record deleted successfully!" })
+        setShowSuccessAlert(true)
+        setAlertMessage("Wage record deleted successfully!")
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to delete wage record."
+        toast({ title: "Error", description: errorMessage, variant: "destructive" })
+      } finally {
+        setIsLoading(false)
+        setProgress(0)
+        setCurrentStep("")
+      }
     }
   }
 
@@ -172,6 +241,40 @@ export default function WagesPage() {
 
   return (
     <div className="space-y-6 p-6">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Processing...
+              </h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>{currentStep}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              
+              <Progress value={progress} className="h-2" />
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Step {Math.ceil((progress / 100) * 4)} of 4
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success/Info Alert */}
+      {showSuccessAlert && (
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+          <div className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Wages Details</h1>
@@ -210,12 +313,10 @@ export default function WagesPage() {
                 </div>
                 <div>
                   <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
+                  <NepaliDatePicker
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    required
+                    onChange={(date) => setFormData({ ...formData, date })}
+                    label="Date"
                   />
                 </div>
                 <div>
@@ -275,11 +376,10 @@ export default function WagesPage() {
                 </div>
                 <div>
                   <Label htmlFor="paymentDate">Payment Date</Label>
-                  <Input
-                    id="paymentDate"
-                    type="date"
+                  <NepaliDatePicker
                     value={formData.paymentDate}
-                    onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
+                    onChange={(date) => setFormData({ ...formData, paymentDate: date })}
+                    label="Payment Date"
                   />
                 </div>
               </div>
@@ -415,7 +515,7 @@ export default function WagesPage() {
                       </div>
                     </td>
                     <td className="py-4 px-4 text-gray-900 dark:text-gray-100">
-                      {formatDate(record.date)}
+                      {formatNepaliDateForTable(record.date)}
                     </td>
                     <td className="py-4 px-4 text-gray-900 dark:text-gray-100">{record.regularHours} hrs</td>
                     <td className="py-4 px-4 text-gray-900 dark:text-gray-100">{record.overtimeHours} hrs</td>

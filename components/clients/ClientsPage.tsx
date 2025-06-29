@@ -6,6 +6,7 @@ import { useState } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
+import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,7 +20,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Plus, Search, Mail, Phone, Building, Edit, Trash2, Clock, CheckCircle, AlertTriangle } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Plus, Search, Mail, Phone, Building, Edit, Trash2, Clock, CheckCircle, AlertTriangle, Eye } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Select,
@@ -29,28 +31,47 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { formatNepaliDateForTable } from "@/lib/utils"
+import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
 
 export default function ClientsPage() {
   const { user } = useAuth()
-  const { clients, addClient, updateClient, deleteClient } = useInventory()
+  const { 
+    clients, 
+    addClient, 
+    updateClient, 
+    deleteClient,
+    getClientTotalSpent,
+    getClientOrderCount,
+    getClientLastOrder,
+    sales
+  } = useInventory()
   const { submitChange } = useApproval()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editingClient, setEditingClient] = useState<any>(null)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isClientHistoryDialogOpen, setIsClientHistoryDialogOpen] = useState(false)
+  const [selectedClientForHistory, setSelectedClientForHistory] = useState<string>("")
+  const [editingClient, setEditingClient] = useState<any>(null)
+  const [viewingClient, setViewingClient] = useState<any>(null)
   const [deletingClient, setDeletingClient] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     company: "",
-    status: "Active",
+    customCompany: "",
     address: "",
+    status: "Active",
   })
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
+  const [totalSteps, setTotalSteps] = useState(0)
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalReason, setApprovalReason] = useState("")
 
@@ -61,44 +82,144 @@ export default function ClientsPage() {
       client.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
+  const updateProgress = (step: string, current: number, total: number) => {
+    setCurrentStep(step)
+    setProgress((current / total) * 100)
+    setTotalSteps(total)
+  }
+
+  const showAlert = (message: string, isSuccess = true) => {
+    setAlertMessage(message)
+    setShowSuccessAlert(isSuccess)
+    setTimeout(() => setShowSuccessAlert(false), 5000)
+  }
+
+  // Helper function to safely format client address
+  const formatClientAddress = (client: any) => {
+    if (!client.address) {
+      return 'Address not available'
+    }
+    
+    // Handle old string address format
+    if (typeof client.address === 'string') {
+      return client.address || 'Address not available'
+    }
+    
+    // Handle new object address format
+    const addressParts = [
+      client.address.street,
+      client.address.city,
+      client.address.state,
+      client.address.zipCode,
+      client.address.country
+    ].filter(part => part && part.trim())
+    
+    return addressParts.length > 0 ? addressParts.join(', ') : 'Address not available'
+  }
+
   const resetForm = () => {
     setFormData({
       name: "",
       email: "",
       phone: "",
       company: "",
-      status: "Active",
+      customCompany: "",
       address: "",
+      status: "Active",
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (user?.role === "admin") {
-      addClient(formData)
-      resetForm()
-      setIsAddDialogOpen(false)
-      setShowSuccessAlert(true)
-      setAlertMessage("Client added successfully!")
-    } else {
-      setShowApprovalDialog(true)
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      updateProgress("Validating client data...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      if (user?.role === "admin") {
+        updateProgress("Adding client to database...", 2, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateProgress("Setting up client profile...", 3, 4)
+        const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+        const { customCompany, ...clientData } = formData
+        await addClient({ 
+          ...clientData, 
+          company: companyName,
+          address: {
+            street: formData.address,
+            city: "",
+            state: "",
+            zipCode: "",
+            country: "",
+          },
+          taxId: "",
+          creditLimit: 0,
+          currentBalance: 0,
+          totalSpent: 0, 
+          orders: 0, 
+          lastOrder: new Date().toISOString().split('T')[0],
+          isActive: formData.status === "Active"
+        })
+        
+        updateProgress("Operation completed!", 4, 4)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        toast({ title: "Success", description: "Client added successfully!", })
+        resetForm()
+        setIsAddDialogOpen(false)
+        setShowSuccessAlert(true)
+        setAlertMessage("Client added successfully!")
+      } else {
+        updateProgress("Preparing approval request...", 2, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateProgress("Submitting for approval...", 3, 3)
+        setShowApprovalDialog(true)
+      }
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to add client.", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
   const submitForApproval = () => {
+    const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+    const { customCompany, ...clientData } = formData
     submitChange({
       type: "client",
       action: "create",
-      proposedData: formData,
+      proposedData: {
+        ...clientData,
+        company: companyName,
+        address: {
+          street: formData.address,
+          city: "",
+          state: "",
+          zipCode: "",
+          country: "",
+        },
+        taxId: "",
+        creditLimit: 0,
+        currentBalance: 0,
+        totalSpent: 0,
+        orders: 0,
+        lastOrder: new Date().toISOString().split('T')[0],
+        isActive: formData.status === "Active"
+      },
       requestedBy: user?.email || "",
       reason: approvalReason,
     })
-    resetForm()
-    setIsAddDialogOpen(false)
+    toast({ title: "Submitted", description: "Client request submitted for admin approval." })
     setShowApprovalDialog(false)
     setApprovalReason("")
-    setShowSuccessAlert(true)
-    setAlertMessage("Client request submitted for approval!")
+    resetForm()
+    setIsAddDialogOpen(false)
   }
 
   const handleEdit = (client: any) => {
@@ -108,8 +229,9 @@ export default function ClientsPage() {
       email: client.email,
       phone: client.phone,
       company: client.company,
-      status: client.status,
-      address: client.address,
+      customCompany: "",
+      address: typeof client.address === 'string' ? client.address : (client.address?.street || ""),
+      status: client.isActive ? "Active" : "Inactive",
     })
     setIsEditDialogOpen(true)
   }
@@ -117,7 +239,21 @@ export default function ClientsPage() {
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (editingClient) {
-      updateClient(editingClient.id, formData)
+      const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+      const { customCompany, ...clientData } = formData
+      const updateData = {
+        ...clientData,
+        company: companyName,
+        address: {
+          street: formData.address,
+          city: "",
+          state: "",
+          zipCode: "",
+          country: "",
+        },
+        isActive: formData.status === "Active"
+      }
+      updateClient(editingClient.id, updateData)
       resetForm()
       setIsEditDialogOpen(false)
       setEditingClient(null)
@@ -129,6 +265,16 @@ export default function ClientsPage() {
   const handleDelete = (client: any) => {
     setDeletingClient(client)
     setIsDeleteDialogOpen(true)
+  }
+
+  const handleView = (client: any) => {
+    setViewingClient(client)
+    setIsViewDialogOpen(true)
+  }
+
+  const handleClientClick = (client: any) => {
+    setSelectedClientForHistory(client.name)
+    setIsClientHistoryDialogOpen(true)
   }
 
   const handleDeleteConfirm = () => {
@@ -215,13 +361,35 @@ export default function ClientsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="company">Company</Label>
-                  <Input
-                    id="company"
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    required
-                  />
+                  <Label htmlFor="company">Company Type</Label>
+                  <div className="space-y-2">
+                    <Select
+                      value={formData.company}
+                      onValueChange={(value) => setFormData({ ...formData, company: value })}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select company type or enter custom type" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        <SelectItem value="custom">+ Add Custom Company Type</SelectItem>
+                        {[...new Set(clients.map(client => client.company))].map((company) => (
+                          <SelectItem key={company} value={company}>
+                            {company}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formData.company === "custom" && (
+                      <Input
+                        placeholder="Enter custom company type"
+                        value={formData.customCompany || ""}
+                        onChange={(e) => setFormData({ ...formData, customCompany: e.target.value })}
+                        className="mt-2"
+                        required
+                      />
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address">Address</Label>
@@ -234,15 +402,16 @@ export default function ClientsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => setFormData({ ...formData, status: value })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Active">Active</SelectItem>
                       <SelectItem value="Inactive">Inactive</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Suspended">Suspended</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -328,13 +497,35 @@ export default function ClientsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-company">Company</Label>
-              <Input
-                id="edit-company"
-                value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                required
-              />
+              <Label htmlFor="edit-company">Company Type</Label>
+              <div className="space-y-2">
+                <Select
+                  value={formData.company}
+                  onValueChange={(value) => setFormData({ ...formData, company: value })}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select company type or enter custom type" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    <SelectItem value="custom">+ Add Custom Company Type</SelectItem>
+                    {[...new Set(clients.map(client => client.company))].map((company) => (
+                      <SelectItem key={company} value={company}>
+                        {company}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.company === "custom" && (
+                  <Input
+                    placeholder="Enter custom company type"
+                    value={formData.customCompany || ""}
+                    onChange={(e) => setFormData({ ...formData, customCompany: e.target.value })}
+                    className="mt-2"
+                    required
+                  />
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-address">Address</Label>
@@ -347,15 +538,16 @@ export default function ClientsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+              <Select
+                value={formData.status}
+                onValueChange={(value) => setFormData({ ...formData, status: value })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Active">Active</SelectItem>
                   <SelectItem value="Inactive">Inactive</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -366,6 +558,204 @@ export default function ClientsPage() {
               <Button type="submit">Update Client</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Client Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                <Eye className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span>Client Details</span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Complete information about the selected client
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingClient && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Basic Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Client Name</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingClient.name}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Company Type</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingClient.company}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Tax ID</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-mono text-base">{viewingClient.taxId || "Not specified"}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Client ID</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-mono text-base">{viewingClient.id}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Contact Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Email</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingClient.email}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Phone</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingClient.phone}</p>
+                  </div>
+                  <div className="space-y-2 lg:col-span-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Address</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                      {formatClientAddress(viewingClient)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span>Financial Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Credit Limit</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      Rs {viewingClient.creditLimit?.toLocaleString() || "0"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Current Balance</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      Rs {viewingClient.currentBalance?.toLocaleString() || "0"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Spent</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-green-600 dark:text-green-400">
+                      Rs {getClientTotalSpent(viewingClient.name).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                  <span>Order Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Orders</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {getClientOrderCount(viewingClient.name)} orders
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Last Order</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {getClientLastOrder(viewingClient.name) ? formatNepaliDateForTable(getClientLastOrder(viewingClient.name)!) : 'No orders yet'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span>Timestamps</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Created</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {formatNepaliDateForTable(viewingClient.createdAt)}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Last Updated</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {formatNepaliDateForTable(viewingClient.updatedAt || viewingClient.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>Status</span>
+                </h3>
+                <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-4 h-4 rounded-full ${viewingClient.isActive !== false ? "bg-green-500" : "bg-red-500"}`}></div>
+                    <span className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {viewingClient.isActive !== false ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 px-4 py-2 text-sm font-medium">
+                    Active Client
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {viewingClient.notes && (
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span>Notes</span>
+                  </h3>
+                  <div className="space-y-2">
+                    <p className="text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600 leading-relaxed text-base">
+                      {viewingClient.notes}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="neutralOutline" 
+              onClick={() => setIsViewDialogOpen(false)}
+              className="px-6 py-2"
+            >
+              Close
+            </Button>
+            <Button 
+              type="button" 
+              onClick={() => {
+                setIsViewDialogOpen(false)
+                handleEdit(viewingClient)
+              }}
+              className="px-6 py-2"
+            >
+              Edit Client
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -433,72 +823,67 @@ export default function ClientsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Address</TableHead>
+                  <TableHead>Client Name</TableHead>
+                  <TableHead>Company Type</TableHead>
                   <TableHead>Contact</TableHead>
-                  <TableHead>Orders</TableHead>
                   <TableHead>Total Spent</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Order</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredClients.map((client) => (
                   <TableRow key={client.id}>
-                    <TableCell className="font-medium">{client.name}</TableCell>
                     <TableCell>
-                      <div className="flex items-center">
-                        <Building className="h-4 w-4 mr-2 text-gray-400" />
-                        {client.company}
+                      <div className="space-y-1">
+                        <p 
+                          className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+                          onClick={() => handleClientClick(client)}
+                        >
+                          {client.name}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {getClientOrderCount(client.name)} orders
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center">
                         <Building className="h-4 w-4 mr-2 text-gray-400" />
-                        {client.address}
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{client.company}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center text-sm">
                           <Mail className="h-4 w-4 mr-2 text-gray-400" />
-                          {client.email}
+                          <span className="text-gray-700 dark:text-gray-300">{client.email}</span>
                         </div>
                         <div className="flex items-center text-sm">
                           <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                          {client.phone}
+                          <span className="text-gray-700 dark:text-gray-300">{client.phone}</span>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {Math.floor(Math.random() * 50) + 1}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        Rs {(Math.random() * 10000 + 1000).toFixed(2)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        client.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                        client.status === 'Inactive' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
-                        client.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {client.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {formatNepaliDateForTable(new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString())}
-                      </span>
+                      <div className="space-y-1">
+                        <span className="font-semibold text-green-600 dark:text-green-400 text-lg">
+                          Rs {getClientTotalSpent(client.name).toLocaleString()}
+                        </span>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Last: {getClientLastOrder(client.name) ? formatNepaliDateForTable(getClientLastOrder(client.name)!) : 'No orders'}
+                        </p>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="neutralOutline"
+                          onClick={() => handleView(client)}
+                          className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="neutralOutline"
@@ -529,6 +914,130 @@ export default function ClientsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Client Transaction History Dialog */}
+      <Dialog open={isClientHistoryDialogOpen} onOpenChange={setIsClientHistoryDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
+              <div className="p-2 bg-teal-100 dark:bg-teal-900/20 rounded-lg">
+                <svg className="h-6 w-6 text-teal-600 dark:text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <span>Client Transaction History</span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              All transactions with <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedClientForHistory}</span> in {getCurrentNepaliYear()}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedClientForHistory && (
+            <div className="space-y-6">
+              {/* Client Summary */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                  <span>Client Summary</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Client Name</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{selectedClientForHistory}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Sales</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {sales.filter(s => s.client === selectedClientForHistory && getNepaliYear(s.saleDate) === getCurrentNepaliYear()).length} transactions
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Quantity</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {sales.filter(s => s.client === selectedClientForHistory && getNepaliYear(s.saleDate) === getCurrentNepaliYear()).reduce((sum, s) => sum + s.quantitySold, 0)} units
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Value</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-teal-600 dark:text-teal-400">
+                      Rs {sales.filter(s => s.client === selectedClientForHistory && getNepaliYear(s.saleDate) === getCurrentNepaliYear()).reduce((sum, s) => sum + (s.quantitySold * s.salePrice), 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sales Transactions */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Sales Transactions ({sales.filter(s => s.client === selectedClientForHistory && getNepaliYear(s.saleDate) === getCurrentNepaliYear()).length})</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-100 dark:bg-gray-700">
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const currentYear = getCurrentNepaliYear()
+                        const clientSales = sales.filter(sale => 
+                          sale.client === selectedClientForHistory && 
+                          getNepaliYear(sale.saleDate) === currentYear
+                        ).sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
+                        
+                        return clientSales.length > 0 ? (
+                          clientSales.map((sale) => (
+                            <TableRow key={sale.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {formatNepaliDateForTable(sale.saleDate)}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                {sale.productName}
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {sale.quantitySold} units
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                Rs {sale.salePrice.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="font-semibold text-green-600 dark:text-green-400">
+                                Rs {(sale.quantitySold * sale.salePrice).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              No sales transactions found for this client in {currentYear}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="neutralOutline" 
+              onClick={() => setIsClientHistoryDialogOpen(false)}
+              className="px-6 py-2"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

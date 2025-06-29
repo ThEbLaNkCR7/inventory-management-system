@@ -21,7 +21,10 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search, Package, Truck, Calendar, DollarSign, Trash2 } from "lucide-react"
-import type { BatchItem } from "@/contexts/BatchContext"
+import type { BatchItem, Batch } from "@/contexts/BatchContext"
+import { formatNepaliDateForTable } from '../../lib/nepaliDateUtils'
+import { toast } from "@/components/ui/use-toast"
+import { Progress } from "@/components/ui/progress"
 
 export default function BatchesPage() {
   const { user } = useAuth()
@@ -36,9 +39,17 @@ export default function BatchesPage() {
     arrivalDate: new Date().toISOString().split("T")[0],
     status: "pending" as const,
   })
-  const [editingBatch, setEditingBatch] = useState<BatchItem | null>(null)
+  const [editingBatch, setEditingBatch] = useState<Batch | null>(null)
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [currentStep, setCurrentStep] = useState("")
+
+  const updateProgress = (step: string, current: number, total: number) => {
+    setCurrentStep(step)
+    setProgress((current / total) * 100)
+  }
 
   const filteredBatches = batches.filter(
     (batch) =>
@@ -87,36 +98,61 @@ export default function BatchesPage() {
     setBatchItems(batchItems.filter((_, i) => i !== index))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (batchItems.length === 0) {
-      alert("Please add at least one item to the batch")
-      return
-    }
+    setIsLoading(true)
+    setProgress(0)
+    
+    try {
+      if (batchItems.length === 0) {
+        toast({ title: "Error", description: "Please add at least one item to the batch.", variant: "destructive" })
+        return
+      }
 
-    const totalItems = batchItems.reduce((sum, item) => sum + item.quantity, 0)
-    const totalValue = batchItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+      updateProgress("Validating batch data...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const totalItems = batchItems.reduce((sum, item) => sum + item.quantity, 0)
+      const totalValue = batchItems.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0)
 
-    const batchData = {
-      ...formData,
-      items: batchItems,  
-      totalItems,
-      totalValue,
-    }
+      const batchData = {
+        ...formData,
+        items: batchItems,  
+        totalItems,
+        totalValue,
+      }
 
-    if (editingBatch) {
-      updateBatch(editingBatch.id, batchData)
-      setEditingBatch(null)
+      updateProgress("Processing batch data...", 2, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      if (editingBatch) {
+        updateProgress("Updating batch in database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        addBatch(batchData)
+        setEditingBatch(null)
+      } else {
+        updateProgress("Adding batch to database...", 3, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        addBatch(batchData)
+      }
+      
+      updateProgress("Operation completed!", 4, 4)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      toast({ title: "Success", description: editingBatch ? "Batch updated successfully!" : "Batch added successfully!" })
       resetForm()
       setIsAddDialogOpen(false)
       setShowSuccessAlert(true)
-      setAlertMessage("Batch updated successfully!")
-    } else {
-      addBatch(batchData)
-      resetForm()
-      setIsAddDialogOpen(false)
-      setShowSuccessAlert(true)
-      setAlertMessage("Batch added successfully!")
+      setAlertMessage(editingBatch ? "Batch updated successfully!" : "Batch added successfully!")
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save batch."
+      toast({ title: "Error", description: errorMessage, variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+      setProgress(0)
+      setCurrentStep("")
     }
   }
 
@@ -144,6 +180,32 @@ export default function BatchesPage() {
 
   return (
     <div className="space-y-8 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-center mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Processing...
+              </h3>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>{currentStep}</span>
+                <span>{Math.round(progress)}%</span>
+              </div>
+              
+              <Progress value={progress} className="h-2" />
+              
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                Step {Math.ceil((progress / 100) * 4)} of 4
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="relative">
         <div className="space-y-2">
           <h1 className="section-title">
@@ -347,7 +409,7 @@ export default function BatchesPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                  <span>{batch.arrivalDate}</span>
+                  <span>{formatNepaliDateForTable(batch.arrivalDate)}</span>
                 </div>
                 <div className="flex items-center">
                   <Package className="h-4 w-4 mr-2 text-gray-400" />

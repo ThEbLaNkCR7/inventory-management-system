@@ -3,10 +3,11 @@
 import type React from "react"
 import { Package } from "lucide-react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
+import { useNotifications } from "@/contexts/NotificationContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,25 +25,28 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Edit, Trash2, AlertTriangle, Clock, CheckCircle } from "lucide-react"
+import { Plus, Search, Edit, Trash2, AlertTriangle, Clock, CheckCircle, Eye } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { formatNepaliDateForTable } from "@/lib/utils"
+import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
 
 export default function ProductsPage() {
   const { user } = useAuth()
-  const { products, addProduct, updateProduct, deleteProduct, refreshData, suppliers } = useInventory()
+  const { products, addProduct, updateProduct, deleteProduct, refreshData, suppliers, sales, purchases } = useInventory()
   const { submitChange } = useApproval()
+  const { addNotification } = useNotifications()
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [editingProduct, setEditingProduct] = useState<any>(null)
-  const [deletingProduct, setDeletingProduct] = useState<any>(null)
-  const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false)
+  const [isViewCategoriesOpen, setIsViewCategoriesOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState("")
+  const [newCategoryDescription, setNewCategoryDescription] = useState("")
   const [pendingAction, setPendingAction] = useState<{
     type: "create" | "update" | "delete"
     data: any
@@ -57,6 +61,7 @@ export default function ProductsPage() {
     unitPrice: 0,
     supplier: "",
     stockType: "new" as "new" | "old",
+    lowStockThreshold: 5,
   })
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
@@ -66,8 +71,22 @@ export default function ProductsPage() {
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState("")
   const [totalSteps, setTotalSteps] = useState(0)
+  const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [deletingProduct, setDeletingProduct] = useState<any>(null)
+  const [viewingProduct, setViewingProduct] = useState<any>(null)
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false)
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false)
+  const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] = useState(false)
+  const [isCategoryHistoryOpen, setIsCategoryHistoryOpen] = useState(false)
+  const [selectedProductForHistory, setSelectedProductForHistory] = useState<any>(null)
+  const [selectedCategoryForHistory, setSelectedCategoryForHistory] = useState<string>("")
+  // Add state variables for supplier and client transaction history
+  const [isSupplierHistoryOpen, setIsSupplierHistoryOpen] = useState(false)
+  const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false)
+  const [selectedSupplierForHistory, setSelectedSupplierForHistory] = useState<string>("")
+  const [selectedClientForHistory, setSelectedClientForHistory] = useState<string>("")
 
-  const categories = [...new Set(products.map((p) => p.category))]
+  const categories = useMemo(() => [...new Set(products.map((p) => p.category))], [products])
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
@@ -97,9 +116,12 @@ export default function ProductsPage() {
       unitPrice: 0,
       supplier: "",
       stockType: "new" as "new" | "old",
+      lowStockThreshold: 5,
     })
     setEditingProduct(null)
     setApprovalReason("")
+    setIsAddingNewCategory(false)
+    setNewCategoryName("")
   }
 
   const updateProgress = (step: string, current: number, total: number) => {
@@ -114,15 +136,21 @@ export default function ProductsPage() {
     setProgress(0)
     
     try {
-      updateProgress("Validating data...", 1, 4)
-      await new Promise(resolve => setTimeout(resolve, 500)) // Simulate validation
+      updateProgress("Validating product data...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Use newCategoryName if adding new category
+      const submitData = {
+        ...formData,
+        category: isAddingNewCategory ? newCategoryName : formData.category
+      }
       
       if (user?.role === "admin") {
         updateProgress("Adding product to database...", 2, 4)
-        await new Promise(resolve => setTimeout(resolve, 500)) // Simulate database operation
+        await new Promise(resolve => setTimeout(resolve, 500))
         
         updateProgress("Updating inventory...", 3, 4)
-        await addProduct(formData)
+        await addProduct(submitData)
         
         updateProgress("Operation completed!", 4, 4)
         await new Promise(resolve => setTimeout(resolve, 300))
@@ -133,6 +161,16 @@ export default function ProductsPage() {
         setShowSuccessAlert(true)
         setAlertMessage("Product added successfully!")
         
+        // Add notification
+        addNotification({
+          type: 'success',
+          title: 'Product Added',
+          message: `Product "${submitData.name}" has been successfully added to inventory.`,
+          action: 'product_added',
+          entityId: submitData.name,
+          entityType: 'product'
+        })
+        
         // Force refresh the data
         await refreshData()
       } else {
@@ -140,12 +178,31 @@ export default function ProductsPage() {
         await new Promise(resolve => setTimeout(resolve, 500))
         
         updateProgress("Submitting for approval...", 3, 3)
-        setPendingAction({ type: "create", data: formData })
+        setPendingAction({ type: "create", data: submitData })
         setShowApprovalDialog(true)
+        
+        // Add notification for approval request
+        addNotification({
+          type: 'info',
+          title: 'Approval Request',
+          message: `Product "${submitData.name}" has been submitted for admin approval.`,
+          action: 'approval_requested',
+          entityId: submitData.name,
+          entityType: 'product'
+        })
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to add product."
       toast({ title: "Error", description: errorMessage, variant: "destructive" })
+      
+      // Add error notification
+      addNotification({
+        type: 'error',
+        title: 'Product Addition Failed',
+        message: errorMessage,
+        action: 'product_add_failed',
+        entityType: 'product'
+      })
     } finally {
       setIsLoading(false)
       setProgress(0)
@@ -163,12 +220,18 @@ export default function ProductsPage() {
         updateProgress("Validating changes...", 1, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
+        // Use newCategoryName if adding new category
+        const submitData = {
+          ...formData,
+          category: isAddingNewCategory ? newCategoryName : formData.category
+        }
+        
         if (user?.role === "admin") {
           updateProgress("Updating product in database...", 2, 4)
           await new Promise(resolve => setTimeout(resolve, 500))
           
           updateProgress("Refreshing inventory...", 3, 4)
-          await updateProduct(editingProduct.id, formData)
+          await updateProduct(editingProduct.id, submitData)
           
           updateProgress("Operation completed!", 4, 4)
           await new Promise(resolve => setTimeout(resolve, 300))
@@ -180,6 +243,16 @@ export default function ProductsPage() {
           setShowSuccessAlert(true)
           setAlertMessage("Product updated successfully!")
           
+          // Add notification
+          addNotification({
+            type: 'success',
+            title: 'Product Updated',
+            message: `Product "${submitData.name}" has been successfully updated.`,
+            action: 'product_updated',
+            entityId: editingProduct.id,
+            entityType: 'product'
+          })
+          
           // Force refresh the data
           await refreshData()
         } else {
@@ -187,13 +260,32 @@ export default function ProductsPage() {
           await new Promise(resolve => setTimeout(resolve, 500))
           
           updateProgress("Submitting for approval...", 3, 3)
-          setPendingAction({ type: "update", data: formData, productId: editingProduct.id })
+          setPendingAction({ type: "update", data: submitData, productId: editingProduct.id })
           setShowApprovalDialog(true)
+          
+          // Add notification for approval request
+          addNotification({
+            type: 'info',
+            title: 'Update Approval Request',
+            message: `Update for product "${submitData.name}" has been submitted for admin approval.`,
+            action: 'update_approval_requested',
+            entityId: editingProduct.id,
+            entityType: 'product'
+          })
         }
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to update product."
       toast({ title: "Error", description: errorMessage, variant: "destructive" })
+      
+      // Add error notification
+      addNotification({
+        type: 'error',
+        title: 'Product Update Failed',
+        message: errorMessage,
+        action: 'product_update_failed',
+        entityType: 'product'
+      })
     } finally {
       setIsLoading(false)
       setProgress(0)
@@ -234,6 +326,7 @@ export default function ProductsPage() {
       unitPrice: product.unitPrice,
       supplier: product.supplier,
       stockType: product.stockType || "new",
+      lowStockThreshold: (product as any).lowStockThreshold || 5,
     })
     setIsEditDialogOpen(true)
   }
@@ -243,50 +336,100 @@ export default function ProductsPage() {
     setIsDeleteDialogOpen(true)
   }
 
+  const handleView = (product: any) => {
+    setViewingProduct(product)
+    setIsViewDialogOpen(true)
+  }
+
+  const handleProductClick = (product: any) => {
+    setSelectedProductForHistory(product)
+    setIsTransactionHistoryOpen(true)
+  }
+
+  const handleCategoryClick = (category: string) => {
+    setSelectedCategoryForHistory(category)
+    setIsCategoryHistoryOpen(true)
+  }
+
   const handleDeleteConfirm = async () => {
     setIsLoading(true)
     setProgress(0)
     
     try {
-      if (deletingProduct) {
-        updateProgress("Validating deletion...", 1, 4)
+      if (user?.role === "admin") {
+        updateProgress("Removing from database...", 2, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        if (user?.role === "admin") {
-          updateProgress("Removing from database...", 2, 4)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          updateProgress("Updating inventory...", 3, 4)
-          await deleteProduct(deletingProduct.id)
-          
-          updateProgress("Operation completed!", 4, 4)
-          await new Promise(resolve => setTimeout(resolve, 300))
-          
-          toast({ title: "Success", description: "Product deleted successfully!", })
-          setIsDeleteDialogOpen(false)
-          setDeletingProduct(null)
-          
-          // Force refresh the data
-          await refreshData()
-        } else {
-          updateProgress("Preparing deletion request...", 2, 3)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          updateProgress("Submitting for approval...", 3, 3)
-          submitChange({ type: "product", action: "delete", entityId: deletingProduct.id, originalData: deletingProduct, proposedData: { deleted: true }, requestedBy: user?.email || "", reason: `Request to delete product: ${deletingProduct.name}` })
-          toast({ title: "Submitted", description: "Product deletion submitted for approval!" })
-          setIsDeleteDialogOpen(false)
-          setDeletingProduct(null)
-        }
+        updateProgress("Updating inventory...", 3, 4)
+        await deleteProduct(deletingProduct.id)
+        
+        updateProgress("Operation completed!", 4, 4)
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        toast({ title: "Success", description: "Product deleted successfully!", })
+        setIsDeleteDialogOpen(false)
+        setDeletingProduct(null)
+        
+        // Add notification
+        addNotification({
+          type: 'warning',
+          title: 'Product Deleted',
+          message: `Product "${deletingProduct.name}" has been permanently deleted from inventory.`,
+          action: 'product_deleted',
+          entityId: deletingProduct.id,
+          entityType: 'product'
+        })
+        
+        // Force refresh the data
+        await refreshData()
+      } else {
+        updateProgress("Preparing deletion request...", 2, 3)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        updateProgress("Submitting for approval...", 3, 3)
+        submitChange({ type: "product", action: "delete", entityId: deletingProduct.id, originalData: deletingProduct, proposedData: { deleted: true }, requestedBy: user?.email || "", reason: `Request to delete product: ${deletingProduct.name}` })
+        toast({ title: "Submitted", description: "Product deletion submitted for approval!" })
+        setIsDeleteDialogOpen(false)
+        setDeletingProduct(null)
+        
+        // Add notification for deletion request
+        addNotification({
+          type: 'info',
+          title: 'Deletion Approval Request',
+          message: `Deletion request for product "${deletingProduct.name}" has been submitted for admin approval.`,
+          action: 'deletion_approval_requested',
+          entityId: deletingProduct.id,
+          entityType: 'product'
+        })
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to delete product."
       toast({ title: "Error", description: errorMessage, variant: "destructive" })
+      
+      // Add error notification
+      addNotification({
+        type: 'error',
+        title: 'Product Deletion Failed',
+        message: errorMessage,
+        action: 'product_deletion_failed',
+        entityType: 'product'
+      })
     } finally {
       setIsLoading(false)
       setProgress(0)
       setCurrentStep("")
     }
+  }
+
+  // Add functions for supplier and client transaction history
+  const handleSupplierClick = (supplier: string) => {
+    setSelectedSupplierForHistory(supplier)
+    setIsSupplierHistoryOpen(true)
+  }
+
+  const handleClientClick = (client: string) => {
+    setSelectedClientForHistory(client)
+    setIsClientHistoryOpen(true)
   }
 
   return (
@@ -387,18 +530,47 @@ export default function ProductsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Category
-                    </Label>
+                <div className="space-y-2">
+                  <Label htmlFor="category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Category
+                  </Label>
+                  {isAddingNewCategory && (
                     <Input
-                      id="category"
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      id="category-new"
+                      value={newCategoryName}
+                      onChange={e => setNewCategoryName(e.target.value)}
+                      placeholder="Enter new category name"
                       className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      required
                     />
-                  </div>
+                  )}
+                  <Select
+                    value={isAddingNewCategory ? "__new__" : formData.category}
+                    onValueChange={(value) => {
+                      if (value === "__new__") {
+                        setIsAddingNewCategory(true)
+                        setNewCategoryName("")
+                      } else {
+                        setIsAddingNewCategory(false)
+                        setFormData({ ...formData, category: value })
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                      <SelectValue placeholder="Select or add category" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__new__">Add new category...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="supplier" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                       Supplier
@@ -568,12 +740,40 @@ export default function ProductsPage() {
               <Label htmlFor="edit-category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 Category
               </Label>
-              <Input
-                id="edit-category"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-              />
+              {isAddingNewCategory && (
+                <Input
+                  id="edit-category-new"
+                  value={newCategoryName}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                  placeholder="Enter new category name"
+                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  required
+                />
+              )}
+              <Select
+                value={isAddingNewCategory ? "__new__" : formData.category}
+                onValueChange={(value) => {
+                  if (value === "__new__") {
+                    setIsAddingNewCategory(true)
+                    setNewCategoryName("")
+                  } else {
+                    setIsAddingNewCategory(false)
+                    setFormData({ ...formData, category: value })
+                  }
+                }}
+              >
+                <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                  <SelectValue placeholder="Select or add category" />
+                </SelectTrigger>
+                <SelectContent className="dark:bg-gray-800 dark:border-gray-700">
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="__new__">Add new category...</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -706,13 +906,10 @@ export default function ProductsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50 dark:bg-gray-700">
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product</TableHead>
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">HS Code</TableHead>
+                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product Name</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Category</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Stock</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Price (Rs)</TableHead>
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Supplier</TableHead>
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Last Updated</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -724,20 +921,25 @@ export default function ProductsPage() {
                   >
                     <TableCell>
                       <div className="space-y-1">
-                        <p className="font-semibold text-gray-900 dark:text-gray-100">{product.name}</p>
+                        <p 
+                          className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          onClick={() => handleProductClick(product)}
+                        >
+                          {product.name}
+                        </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">{product.description}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-sm dark:text-gray-300">
-                      {product.hsCode}
-                    </TableCell>
                     <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-medium"
-                      >
-                        {product.category}
-                      </Badge>
+                      <div className="space-y-1">
+                        <p 
+                          className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          onClick={() => handleProductClick(product)}
+                        >
+                          {product.category}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{product.description}</p>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
@@ -752,12 +954,16 @@ export default function ProductsPage() {
                     <TableCell className="font-semibold text-slate-600 dark:text-slate-400">
                       Rs {product.unitPrice.toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-gray-700 dark:text-gray-300">{product.supplier}</TableCell>
-                    <TableCell className="text-sm text-gray-600 dark:text-gray-400">
-                      {formatNepaliDateForTable(product.createdAt)}
-                    </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="neutralOutline"
+                          onClick={() => handleView(product)}
+                          className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="sm"
                           variant="neutralOutline"
@@ -791,6 +997,202 @@ export default function ProductsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* View Product Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                <Eye className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span>Product Details</span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Complete information about the selected product
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingProduct && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Basic Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Product Name</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingProduct.name}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">HS Code</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-mono text-base">{viewingProduct.hsCode || "Not specified"}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Category</Label>
+                    <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400 px-3 py-1 text-sm font-medium">
+                      {viewingProduct.category}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Stock Type</Label>
+                    <Badge 
+                      variant={viewingProduct.stockType === "new" ? "default" : "secondary"}
+                      className={viewingProduct.stockType === "new" ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 px-3 py-1 text-sm font-medium" : "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 px-3 py-1 text-sm font-medium"}
+                    >
+                      {viewingProduct.stockType === "new" ? "New Stock" : "Old Stock"}
+                    </Badge>
+                  </div>
+                </div>
+                {viewingProduct.description && (
+                  <div className="space-y-2 mt-6">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Description</Label>
+                    <p className="text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-600 leading-relaxed text-base">
+                      {viewingProduct.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Inventory Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Inventory Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Stock Quantity</Label>
+                    <div className="flex items-center space-x-3">
+                      {viewingProduct.stockQuantity <= 5 && <AlertTriangle className="h-5 w-5 text-amber-500" />}
+                      <span className={`font-semibold text-lg ${viewingProduct.stockQuantity <= 5 ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-slate-400"}`}>
+                        {viewingProduct.stockQuantity} units
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Unit Price</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      Rs {viewingProduct.unitPrice.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Value</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      Rs {(viewingProduct.stockQuantity * viewingProduct.unitPrice).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Low Stock Threshold</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">
+                      {(viewingProduct as any).lowStockThreshold || 5} units
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Supplier Information */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span>Supplier Information</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Supplier</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingProduct.supplier}</p>
+                  </div>
+                  {viewingProduct.batchNumber && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Batch Number</Label>
+                      <p className="text-gray-700 dark:text-gray-300 font-mono text-base bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                        {viewingProduct.batchNumber}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                  <span>Timestamps</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Created</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {formatNepaliDateForTable(viewingProduct.createdAt)}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Last Updated</Label>
+                    <p className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {formatNepaliDateForTable(viewingProduct.updatedAt || viewingProduct.createdAt)}
+                    </p>
+                  </div>
+                  {viewingProduct.lastRestocked && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Last Restocked</Label>
+                      <p className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                        {formatNepaliDateForTable(viewingProduct.lastRestocked)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>Status</span>
+                </h3>
+                <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-4 h-4 rounded-full ${viewingProduct.isActive !== false ? "bg-green-500" : "bg-red-500"}`}></div>
+                    <span className="text-gray-700 dark:text-gray-300 font-medium text-base">
+                      {viewingProduct.isActive !== false ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                  {viewingProduct.stockQuantity <= 0 && (
+                    <Badge variant="destructive" className="px-4 py-2 text-sm font-medium">Out of Stock</Badge>
+                  )}
+                  {viewingProduct.stockQuantity > 0 && viewingProduct.stockQuantity <= 5 && (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 px-4 py-2 text-sm font-medium">
+                      Low Stock
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="neutralOutline" 
+              onClick={() => setIsViewDialogOpen(false)}
+              className="px-6 py-2"
+            >
+              Close
+            </Button>
+            <Button 
+              type="button" 
+              onClick={() => {
+                setIsViewDialogOpen(false)
+                handleEdit(viewingProduct)
+              }}
+              className="px-6 py-2"
+            >
+              Edit Product
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Product Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -844,6 +1246,871 @@ export default function ProductsPage() {
                 {user?.role === "admin" ? "Delete Product" : "Submit Deletion"}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Transaction History Dialog */}
+      <Dialog open={isTransactionHistoryOpen} onOpenChange={setIsTransactionHistoryOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
+              <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+                <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <span>Transaction History</span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Sales and purchases for <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedProductForHistory?.name}</span> in {new Date().getFullYear()}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedProductForHistory && (
+            <div className="space-y-6">
+              {/* Product Summary */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Product Summary</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Product Name</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{selectedProductForHistory.name}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Current Stock</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">{selectedProductForHistory.stockQuantity} units</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Unit Price</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">Rs {selectedProductForHistory.unitPrice.toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Value</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-green-600 dark:text-green-400">
+                      Rs {(selectedProductForHistory.stockQuantity * selectedProductForHistory.unitPrice).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transaction Statistics */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Year {new Date().getFullYear()} Statistics</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  {(() => {
+                    const currentYear = getCurrentNepaliYear()
+                    const productSales = sales.filter(sale => 
+                      sale.productName === selectedProductForHistory.name && 
+                      getNepaliYear(sale.saleDate) === currentYear
+                    ).sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
+                    
+                    const productPurchases = purchases.filter(purchase => 
+                      purchase.productName === selectedProductForHistory.name && 
+                      getNepaliYear(purchase.purchaseDate) === currentYear
+                    )
+                    
+                    const totalSalesQuantity = productSales.reduce((sum, sale) => sum + sale.quantitySold, 0)
+                    const totalSalesValue = productSales.reduce((sum, sale) => sum + (sale.quantitySold * sale.salePrice), 0)
+                    const totalPurchaseQuantity = productPurchases.reduce((sum, purchase) => sum + purchase.quantityPurchased, 0)
+                    const totalPurchaseValue = productPurchases.reduce((sum, purchase) => sum + (purchase.quantityPurchased * purchase.purchasePrice), 0)
+                    
+                    return (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Sales</Label>
+                          <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-green-600 dark:text-green-400">
+                            {totalSalesQuantity} units
+                          </p>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm">
+                            Rs {totalSalesValue.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Purchases</Label>
+                          <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-blue-600 dark:text-blue-400">
+                            {totalPurchaseQuantity} units
+                          </p>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm">
+                            Rs {totalPurchaseValue.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Net Movement</Label>
+                          <p className={`font-semibold text-lg ${totalPurchaseQuantity - totalSalesQuantity >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {totalPurchaseQuantity - totalSalesQuantity} units
+                          </p>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm">
+                            {totalPurchaseQuantity - totalSalesQuantity >= 0 ? 'Net Inflow' : 'Net Outflow'}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Profit Margin</Label>
+                          <p className={`font-semibold text-lg ${totalSalesValue - totalPurchaseValue >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            Rs {(totalSalesValue - totalPurchaseValue).toLocaleString()}
+                          </p>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm">
+                            {totalPurchaseValue > 0 ? `${(((totalSalesValue - totalPurchaseValue) / totalPurchaseValue) * 100).toFixed(1)}% margin` : 'N/A'}
+                          </p>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* Sales Transactions */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Sales Transactions ({(() => {
+                    const currentYear = getCurrentNepaliYear()
+                    return sales.filter(sale => 
+                      sale.productName === selectedProductForHistory.name && 
+                      getNepaliYear(sale.saleDate) === currentYear
+                    ).length
+                  })()})</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-100 dark:bg-gray-700">
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Client</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const currentYear = getCurrentNepaliYear()
+                        const productSales = sales.filter(sale => 
+                          sale.productName === selectedProductForHistory.name && 
+                          getNepaliYear(sale.saleDate) === currentYear
+                        ).sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
+                        
+                        return productSales.length > 0 ? (
+                          productSales.map((sale) => (
+                            <TableRow key={sale.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {formatNepaliDateForTable(sale.saleDate)}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                <span 
+                                  className="cursor-pointer hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+                                  onClick={() => handleClientClick(sale.client)}
+                                >
+                                  {sale.client}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {sale.quantitySold} units
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                Rs {sale.salePrice.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="font-semibold text-green-600 dark:text-green-400">
+                                Rs {(sale.quantitySold * sale.salePrice).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              No sales transactions found for this product in {currentYear}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Purchase Transactions */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Purchase Transactions ({(() => {
+                    const currentYear = getCurrentNepaliYear()
+                    return purchases.filter(purchase => 
+                      purchase.productName === selectedProductForHistory.name && 
+                      getNepaliYear(purchase.purchaseDate) === currentYear
+                    ).length
+                  })()})</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-100 dark:bg-gray-700">
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Supplier</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const currentYear = getCurrentNepaliYear()
+                        const productPurchases = purchases.filter(purchase => 
+                          purchase.productName === selectedProductForHistory.name && 
+                          getNepaliYear(purchase.purchaseDate) === currentYear
+                        ).sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+                        
+                        return productPurchases.length > 0 ? (
+                          productPurchases.map((purchase) => (
+                            <TableRow key={purchase.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {formatNepaliDateForTable(purchase.purchaseDate)}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                <span 
+                                  className="cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                                  onClick={() => handleSupplierClick(purchase.supplier)}
+                                >
+                                  {purchase.supplier}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {purchase.quantityPurchased} units
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                Rs {purchase.purchasePrice.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="font-semibold text-blue-600 dark:text-blue-400">
+                                Rs {(purchase.quantityPurchased * purchase.purchasePrice).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              No purchase transactions found for this product in {currentYear}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="neutralOutline" 
+              onClick={() => setIsTransactionHistoryOpen(false)}
+              className="px-6 py-2"
+            >
+              Close
+            </Button>
+            <Button 
+              type="button" 
+              onClick={() => {
+                setIsTransactionHistoryOpen(false)
+                handleView(selectedProductForHistory)
+              }}
+              className="px-6 py-2"
+            >
+              View Product Details
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Category Transaction History Dialog */}
+      <Dialog open={isCategoryHistoryOpen} onOpenChange={setIsCategoryHistoryOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+                <svg className="h-6 w-6 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <span>Category Transaction History</span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Sales and purchases for <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedCategoryForHistory}</span> category in {new Date().getFullYear()}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedCategoryForHistory && (
+            <div className="space-y-6">
+              {/* Category Summary */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span>Category Summary</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Category Name</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{selectedCategoryForHistory}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Products</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {products.filter(p => p.category === selectedCategoryForHistory).length} products
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Stock</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {products.filter(p => p.category === selectedCategoryForHistory).reduce((sum, p) => sum + p.stockQuantity, 0)} units
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Value</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-purple-600 dark:text-purple-400">
+                      Rs {products.filter(p => p.category === selectedCategoryForHistory).reduce((sum, p) => sum + (p.stockQuantity * p.unitPrice), 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Category Statistics */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Year {new Date().getFullYear()} Statistics</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  {(() => {
+                    const currentYear = getCurrentNepaliYear()
+                    const categoryProducts = products.filter(p => p.category === selectedCategoryForHistory)
+                    const categoryProductNames = categoryProducts.map(p => p.name)
+                    
+                    const categorySales = sales.filter(sale => 
+                      categoryProductNames.includes(sale.productName) && 
+                      getNepaliYear(sale.saleDate) === currentYear
+                    )
+                    const categoryPurchases = purchases.filter(purchase => 
+                      categoryProductNames.includes(purchase.productName) && 
+                      getNepaliYear(purchase.purchaseDate) === currentYear
+                    )
+                    
+                    const totalSalesQuantity = categorySales.reduce((sum, sale) => sum + sale.quantitySold, 0)
+                    const totalSalesValue = categorySales.reduce((sum, sale) => sum + (sale.quantitySold * sale.salePrice), 0)
+                    const totalPurchaseQuantity = categoryPurchases.reduce((sum, purchase) => sum + purchase.quantityPurchased, 0)
+                    const totalPurchaseValue = categoryPurchases.reduce((sum, purchase) => sum + (purchase.quantityPurchased * purchase.purchasePrice), 0)
+                    
+                    return (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Sales</Label>
+                          <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-green-600 dark:text-green-400">
+                            {totalSalesQuantity} units
+                          </p>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm">
+                            Rs {totalSalesValue.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Purchases</Label>
+                          <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-blue-600 dark:text-blue-400">
+                            {totalPurchaseQuantity} units
+                          </p>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm">
+                            Rs {totalPurchaseValue.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Net Movement</Label>
+                          <p className={`font-semibold text-lg ${totalPurchaseQuantity - totalSalesQuantity >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {totalPurchaseQuantity - totalSalesQuantity} units
+                          </p>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm">
+                            {totalPurchaseQuantity - totalSalesQuantity >= 0 ? 'Net Inflow' : 'Net Outflow'}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Profit Margin</Label>
+                          <p className={`font-semibold text-lg ${totalSalesValue - totalPurchaseValue >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            Rs {(totalSalesValue - totalPurchaseValue).toLocaleString()}
+                          </p>
+                          <p className="text-gray-700 dark:text-gray-300 text-sm">
+                            {totalPurchaseValue > 0 ? `${(((totalSalesValue - totalPurchaseValue) / totalPurchaseValue) * 100).toFixed(1)}% margin` : 'N/A'}
+                          </p>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* Products in Category */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                  <span>Products in {selectedCategoryForHistory} ({products.filter(p => p.category === selectedCategoryForHistory).length})</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-100 dark:bg-gray-700">
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product Name</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Stock</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total Value</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {products.filter(p => p.category === selectedCategoryForHistory).map((product) => (
+                        <TableRow key={product.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                          <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                            {product.name}
+                          </TableCell>
+                          <TableCell className="text-gray-700 dark:text-gray-300">
+                            {product.stockQuantity} units
+                          </TableCell>
+                          <TableCell className="text-gray-700 dark:text-gray-300">
+                            Rs {product.unitPrice.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="font-semibold text-purple-600 dark:text-purple-400">
+                            Rs {(product.stockQuantity * product.unitPrice).toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant="secondary"
+                              className={`px-2 py-1 text-xs font-medium ${
+                                product.stockQuantity > ((product as any).lowStockThreshold ?? 5) ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                              }`}
+                            >
+                              {product.stockQuantity > ((product as any).lowStockThreshold ?? 5) ? 'In Stock' : 'Low Stock'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Category Sales Transactions */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Sales Transactions ({(() => {
+                    const currentYear = getCurrentNepaliYear()
+                    const categoryProducts = products.filter(p => p.category === selectedCategoryForHistory)
+                    const categoryProductNames = categoryProducts.map(p => p.name)
+                    return sales.filter(sale => 
+                      categoryProductNames.includes(sale.productName) && 
+                      getNepaliYear(sale.saleDate) === currentYear
+                    ).length
+                  })()})</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-100 dark:bg-gray-700">
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Client</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const currentYear = getCurrentNepaliYear()
+                        const categoryProducts = products.filter(p => p.category === selectedCategoryForHistory)
+                        const categoryProductNames = categoryProducts.map(p => p.name)
+                        const categorySales = sales.filter(sale => 
+                          categoryProductNames.includes(sale.productName) && 
+                          getNepaliYear(sale.saleDate) === currentYear
+                        ).sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
+                        
+                        return categorySales.length > 0 ? (
+                          categorySales.map((sale) => (
+                            <TableRow key={sale.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {formatNepaliDateForTable(sale.saleDate)}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                {sale.productName}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                <span 
+                                  className="cursor-pointer hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+                                  onClick={() => handleClientClick(sale.client)}
+                                >
+                                  {sale.client}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {sale.quantitySold} units
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                Rs {sale.salePrice.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="font-semibold text-green-600 dark:text-green-400">
+                                Rs {(sale.quantitySold * sale.salePrice).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              No sales transactions found for this category in {currentYear}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Category Purchase Transactions */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Purchase Transactions ({(() => {
+                    const currentYear = getCurrentNepaliYear()
+                    const categoryProducts = products.filter(p => p.category === selectedCategoryForHistory)
+                    const categoryProductNames = categoryProducts.map(p => p.name)
+                    return purchases.filter(purchase => 
+                      categoryProductNames.includes(purchase.productName) && 
+                      getNepaliYear(purchase.purchaseDate) === currentYear
+                    ).length
+                  })()})</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-100 dark:bg-gray-700">
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Supplier</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const currentYear = getCurrentNepaliYear()
+                        const categoryProducts = products.filter(p => p.category === selectedCategoryForHistory)
+                        const categoryProductNames = categoryProducts.map(p => p.name)
+                        const categoryPurchases = purchases.filter(purchase => 
+                          categoryProductNames.includes(purchase.productName) && 
+                          getNepaliYear(purchase.purchaseDate) === currentYear
+                        ).sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+                        
+                        return categoryPurchases.length > 0 ? (
+                          categoryPurchases.map((purchase) => (
+                            <TableRow key={purchase.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {formatNepaliDateForTable(purchase.purchaseDate)}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                {purchase.productName}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                <span 
+                                  className="cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                                  onClick={() => handleSupplierClick(purchase.supplier)}
+                                >
+                                  {purchase.supplier}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {purchase.quantityPurchased} units
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                Rs {purchase.purchasePrice.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="font-semibold text-blue-600 dark:text-blue-400">
+                                Rs {(purchase.quantityPurchased * purchase.purchasePrice).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              No purchase transactions found for this category in {currentYear}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="neutralOutline" 
+              onClick={() => setIsCategoryHistoryOpen(false)}
+              className="px-6 py-2"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Supplier Transaction History Dialog */}
+      <Dialog open={isSupplierHistoryOpen} onOpenChange={setIsSupplierHistoryOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                <svg className="h-6 w-6 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+              <span>Supplier Transaction History</span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              All transactions with <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedSupplierForHistory}</span> in {new Date().getFullYear()}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedSupplierForHistory && (
+            <div className="space-y-6">
+              {/* Supplier Summary */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span>Supplier Summary</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Supplier Name</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{selectedSupplierForHistory}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Purchases</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).length} transactions
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Quantity</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).reduce((sum, p) => sum + p.quantityPurchased, 0)} units
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Value</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-orange-600 dark:text-orange-400">
+                      Rs {purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).reduce((sum, p) => sum + (p.quantityPurchased * p.purchasePrice), 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Purchase Transactions */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Purchase Transactions ({purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).length})</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-100 dark:bg-gray-700">
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const currentYear = getCurrentNepaliYear()
+                        const supplierPurchases = purchases.filter(purchase => 
+                          purchase.supplier === selectedSupplierForHistory && 
+                          getNepaliYear(purchase.purchaseDate) === currentYear
+                        ).sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+                        
+                        return supplierPurchases.length > 0 ? (
+                          supplierPurchases.map((purchase) => (
+                            <TableRow key={purchase.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {formatNepaliDateForTable(purchase.purchaseDate)}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                {purchase.productName}
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {purchase.quantityPurchased} units
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                Rs {purchase.purchasePrice.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="font-semibold text-blue-600 dark:text-blue-400">
+                                Rs {(purchase.quantityPurchased * purchase.purchasePrice).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              No purchase transactions found for this supplier in {currentYear}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="neutralOutline" 
+              onClick={() => setIsSupplierHistoryOpen(false)}
+              className="px-6 py-2"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Client Transaction History Dialog */}
+      <Dialog open={isClientHistoryOpen} onOpenChange={setIsClientHistoryOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
+              <div className="p-2 bg-teal-100 dark:bg-teal-900/20 rounded-lg">
+                <svg className="h-6 w-6 text-teal-600 dark:text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <span>Client Transaction History</span>
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              All transactions with <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedClientForHistory}</span> in {new Date().getFullYear()}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedClientForHistory && (
+            <div className="space-y-6">
+              {/* Client Summary */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                  <span>Client Summary</span>
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Client Name</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{selectedClientForHistory}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Sales</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {sales.filter(s => s.client === selectedClientForHistory && getNepaliYear(s.saleDate) === getCurrentNepaliYear()).length} transactions
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Quantity</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
+                      {sales.filter(s => s.client === selectedClientForHistory && getNepaliYear(s.saleDate) === getCurrentNepaliYear()).reduce((sum, s) => sum + s.quantitySold, 0)} units
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Value</Label>
+                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-teal-600 dark:text-teal-400">
+                      Rs {sales.filter(s => s.client === selectedClientForHistory && getNepaliYear(s.saleDate) === getCurrentNepaliYear()).reduce((sum, s) => sum + (s.quantitySold * s.salePrice), 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sales Transactions */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Sales Transactions ({sales.filter(s => s.client === selectedClientForHistory && getNepaliYear(s.saleDate) === getCurrentNepaliYear()).length})</span>
+                </h3>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-gray-100 dark:bg-gray-700">
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const currentYear = getCurrentNepaliYear()
+                        const clientSales = sales.filter(sale => 
+                          sale.client === selectedClientForHistory && 
+                          getNepaliYear(sale.saleDate) === currentYear
+                        ).sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
+                        
+                        return clientSales.length > 0 ? (
+                          clientSales.map((sale) => (
+                            <TableRow key={sale.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {formatNepaliDateForTable(sale.saleDate)}
+                              </TableCell>
+                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
+                                {sale.productName}
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                {sale.quantitySold} units
+                              </TableCell>
+                              <TableCell className="text-gray-700 dark:text-gray-300">
+                                Rs {sale.salePrice.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="font-semibold text-green-600 dark:text-green-400">
+                                Rs {(sale.quantitySold * sale.salePrice).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              No sales transactions found for this client in {currentYear}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <Button 
+              type="button" 
+              variant="neutralOutline" 
+              onClick={() => setIsClientHistoryOpen(false)}
+              className="px-6 py-2"
+            >
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

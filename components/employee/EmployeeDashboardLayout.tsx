@@ -18,6 +18,7 @@ function EmployeeDashboardContent() {
   const searchParams = useSearchParams()
   const initialTab = searchParams.get("tab") || "dashboard"
   const [activeTab, setActiveTab] = useState(initialTab)
+  const [isMobile, setIsMobile] = useState(false)
   
   // Initialize sidebar state from localStorage
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -29,6 +30,23 @@ function EmployeeDashboardContent() {
   })
   
   const mainContentRef = useRef<HTMLElement>(null)
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const mobile = window.innerWidth < 1024
+      setIsMobile(mobile)
+      
+      // Auto-close sidebar on mobile
+      if (mobile && sidebarOpen) {
+        setSidebarOpen(false)
+      }
+    }
+
+    checkScreenSize()
+    window.addEventListener('resize', checkScreenSize)
+    return () => window.removeEventListener('resize', checkScreenSize)
+  }, [sidebarOpen])
 
   // Save sidebar state to localStorage when it changes
   useEffect(() => {
@@ -72,21 +90,26 @@ function EmployeeDashboardContent() {
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
       <EmployeeSidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      <div className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
-        {/* Sidebar open button (desktop) */}
-        {!sidebarOpen && (
+      
+      <div className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-300 ${
+        !isMobile && sidebarOpen ? 'ml-64' : 'ml-0'
+      }`}>
+        {/* Sidebar toggle button - only show on desktop when sidebar is closed */}
+        {!isMobile && !sidebarOpen && (
           <button
-            className="hidden lg:flex items-center justify-center absolute top-4 left-4 z-50 bg-gray-800 text-white rounded-full shadow-lg hover:shadow-xl p-2 hover:bg-gray-700 transition-all duration-300 hover:scale-110 transform"
+            className="fixed top-4 left-4 z-50 flex items-center justify-center bg-gray-800 text-white rounded-full shadow-lg hover:shadow-xl p-2 hover:bg-gray-700 transition-all duration-300 hover:scale-110 transform"
             onClick={() => setSidebarOpen(true)}
             aria-label="Open sidebar"
           >
             <ChevronRight className="h-6 w-6" />
           </button>
         )}
-        <Header user={user} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        
+        <Header user={user} onMenuClick={() => setSidebarOpen(!sidebarOpen)} sidebarOpen={sidebarOpen} isMobile={isMobile} />
+        
         <main 
           ref={mainContentRef}
-          className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-6 transition-colors duration-300"
+          className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 lg:p-6 transition-colors duration-300"
         >
           {renderContent()}
         </main>
