@@ -19,10 +19,24 @@ import {
   TrendingDown,
   Users,
   Building2,
-  Loader2
+  Loader2,
+  Plus,
+  BookOpen,
+  Calculator
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Progress } from "@/components/ui/progress"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
 interface PaymentStats {
   purchaseStats: {
@@ -47,16 +61,54 @@ interface PaymentStats {
   overdueTransactions: any[]
 }
 
+interface Payment {
+  _id: string
+  transactionId: string
+  transactionType: "Purchase" | "Sale" | "Expense" | "Income"
+  entityName: string
+  entityModel: "Supplier" | "Client"
+  debitAccount: string
+  creditAccount: string
+  debitAmount: number
+  creditAmount: number
+  amount: number
+  paymentDate: string
+  paymentMethod: string
+  description: string
+  referenceNumber?: string
+  invoiceNumber?: string
+  notes?: string
+  paidBy: string
+  recordedBy: string
+  status: string
+}
+
 export default function PaymentsPage() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [stats, setStats] = useState<PaymentStats | null>(null)
+  const [payments, setPayments] = useState<Payment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    transactionType: "Purchase",
+    entityName: "",
+    entityModel: "Supplier",
+    amount: 0,
+    paymentDate: new Date().toISOString().split("T")[0],
+    paymentMethod: "Cash",
+    description: "",
+    referenceNumber: "",
+    invoiceNumber: "",
+    notes: "",
+    paidBy: "",
+  })
 
   useEffect(() => {
     fetchPaymentStats()
+    fetchPayments()
   }, [])
 
   const fetchPaymentStats = async () => {
@@ -76,6 +128,65 @@ export default function PaymentsPage() {
     }
   }
 
+  const fetchPayments = async () => {
+    try {
+      const response = await fetch("/api/payments")
+      const data = await response.json()
+      setPayments(data.payments || [])
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch payments",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleAddPayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const response = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          recordedBy: user?.email || "Unknown"
+        })
+      })
+
+      if (!response.ok) throw new Error("Failed to add payment")
+
+      toast({
+        title: "Success",
+        description: "Payment recorded successfully"
+      })
+
+      setIsAddDialogOpen(false)
+      setFormData({
+        transactionType: "Purchase",
+        entityName: "",
+        entityModel: "Supplier",
+        amount: 0,
+        paymentDate: new Date().toISOString().split("T")[0],
+        paymentMethod: "Cash",
+        description: "",
+        referenceNumber: "",
+        invoiceNumber: "",
+        notes: "",
+        paidBy: "",
+      })
+      
+      fetchPaymentStats()
+      fetchPayments()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to record payment",
+        variant: "destructive"
+      })
+    }
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -85,11 +196,22 @@ export default function PaymentsPage() {
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case "Paid": return "bg-green-100 text-green-800"
-      case "Partial": return "bg-yellow-100 text-yellow-800"
-      case "Pending": return "bg-blue-100 text-blue-800"
-      case "Overdue": return "bg-red-100 text-red-800"
+      case "Completed": return "bg-green-100 text-green-800"
+      case "Pending": return "bg-yellow-100 text-yellow-800"
+      case "Cancelled": return "bg-red-100 text-red-800"
       default: return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getAccountColor = (account: string) => {
+    switch (account) {
+      case "Cash": return "text-green-600"
+      case "Bank": return "text-blue-600"
+      case "Accounts Payable": return "text-red-600"
+      case "Accounts Receivable": return "text-purple-600"
+      case "Expenses": return "text-orange-600"
+      case "Revenue": return "text-green-600"
+      default: return "text-gray-600"
     }
   }
 
@@ -135,16 +257,181 @@ export default function PaymentsPage() {
         .reduce((sum, t) => sum + t.outstanding, 0)
     }))
 
+  const filteredPayments = payments.filter(payment =>
+    payment.entityName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.transactionId.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Payment Tracking</h1>
+          <h1 className="text-3xl font-bold">Payment Tracking & Accounting</h1>
           <p className="text-muted-foreground">
-            Monitor outstanding payments by suppliers and clients
+            Monitor payments with full double-entry bookkeeping
           </p>
         </div>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Record Payment
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Record New Payment</DialogTitle>
+              <DialogDescription>
+                Record a payment with proper accounting entries
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddPayment} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Transaction Type</Label>
+                  <Select 
+                    value={formData.transactionType} 
+                    onValueChange={(value) => setFormData({...formData, transactionType: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Purchase">Purchase Payment</SelectItem>
+                      <SelectItem value="Sale">Sale Receipt</SelectItem>
+                      <SelectItem value="Expense">Expense</SelectItem>
+                      <SelectItem value="Income">Income</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Entity Type</Label>
+                  <Select 
+                    value={formData.entityModel} 
+                    onValueChange={(value) => setFormData({...formData, entityModel: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Supplier">Supplier</SelectItem>
+                      <SelectItem value="Client">Client</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div>
+                <Label>Entity Name</Label>
+                <Input
+                  value={formData.entityName}
+                  onChange={(e) => setFormData({...formData, entityName: e.target.value})}
+                  placeholder="Enter supplier or client name"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Amount</Label>
+                  <Input
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({...formData, amount: parseFloat(e.target.value) || 0})}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Payment Date</Label>
+                  <Input
+                    type="date"
+                    value={formData.paymentDate}
+                    onChange={(e) => setFormData({...formData, paymentDate: e.target.value})}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Payment Method</Label>
+                  <Select 
+                    value={formData.paymentMethod} 
+                    onValueChange={(value) => setFormData({...formData, paymentMethod: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="Check">Check</SelectItem>
+                      <SelectItem value="Credit Card">Credit Card</SelectItem>
+                      <SelectItem value="Digital Payment">Digital Payment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Paid By</Label>
+                  <Input
+                    value={formData.paidBy}
+                    onChange={(e) => setFormData({...formData, paidBy: e.target.value})}
+                    placeholder="Who made/received the payment"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Description</Label>
+                <Input
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Brief description of the payment"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Reference Number</Label>
+                  <Input
+                    value={formData.referenceNumber}
+                    onChange={(e) => setFormData({...formData, referenceNumber: e.target.value})}
+                    placeholder="Check number, transaction ID, etc."
+                  />
+                </div>
+                <div>
+                  <Label>Invoice Number</Label>
+                  <Input
+                    value={formData.invoiceNumber}
+                    onChange={(e) => setFormData({...formData, invoiceNumber: e.target.value})}
+                    placeholder="Related invoice number"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Notes</Label>
+                <Textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                  placeholder="Additional notes"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Record Payment</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Summary Cards */}
@@ -196,15 +483,15 @@ export default function PaymentsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent Payments</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.recentPayments.length}
+              {payments.length}
             </div>
             <p className="text-xs text-muted-foreground">
-              Last 10 payments
+              Recorded payments
             </p>
           </CardContent>
         </Card>
@@ -212,16 +499,16 @@ export default function PaymentsPage() {
 
       {/* Enhanced Tabs for Detailed Tracking */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="suppliers">Supplier Expenses</TabsTrigger>
           <TabsTrigger value="clients">Client Revenue</TabsTrigger>
+          <TabsTrigger value="ledger">General Ledger</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          {/* Existing overview content */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
@@ -281,7 +568,6 @@ export default function PaymentsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Search and Filter */}
                 <div className="flex gap-2">
                   <Input
                     placeholder="Search suppliers..."
@@ -291,7 +577,6 @@ export default function PaymentsPage() {
                   />
                 </div>
 
-                {/* Supplier Expense Table */}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -343,7 +628,6 @@ export default function PaymentsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Search and Filter */}
                 <div className="flex gap-2">
                   <Input
                     placeholder="Search clients..."
@@ -353,7 +637,6 @@ export default function PaymentsPage() {
                   />
                 </div>
 
-                {/* Client Revenue Table */}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -380,6 +663,88 @@ export default function PaymentsPage() {
                         <TableCell>
                           <Badge className={getPaymentStatusColor("Overdue")}>
                             Overdue
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* General Ledger Tab */}
+        <TabsContent value="ledger" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                General Ledger
+              </CardTitle>
+              <CardDescription>
+                Complete double-entry bookkeeping ledger with debit and credit entries
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search transactions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Transaction ID</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Entity</TableHead>
+                      <TableHead>Debit Account</TableHead>
+                      <TableHead>Credit Account</TableHead>
+                      <TableHead>Debit Amount</TableHead>
+                      <TableHead>Credit Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPayments.map((payment) => (
+                      <TableRow key={payment._id}>
+                        <TableCell>
+                          {new Date(payment.paymentDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {payment.transactionId}
+                        </TableCell>
+                        <TableCell>{payment.description}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {payment.entityModel}: {payment.entityName}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={getAccountColor(payment.debitAccount)}>
+                            {payment.debitAccount}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={getAccountColor(payment.creditAccount)}>
+                            {payment.creditAccount}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-mono text-red-600">
+                          {formatCurrency(payment.debitAmount)}
+                        </TableCell>
+                        <TableCell className="font-mono text-green-600">
+                          {formatCurrency(payment.creditAmount)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getPaymentStatusColor(payment.status)}>
+                            {payment.status}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -444,6 +809,34 @@ export default function PaymentsPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Balances</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-green-50 rounded">
+                  <div className="text-2xl font-bold text-green-600">
+                    {formatCurrency(payments.filter(p => p.debitAccount === 'Cash').reduce((sum, p) => sum + p.debitAmount, 0))}
+                  </div>
+                  <div className="text-sm text-gray-600">Cash Balance</div>
+                </div>
+                <div className="text-center p-4 bg-red-50 rounded">
+                  <div className="text-2xl font-bold text-red-600">
+                    {formatCurrency(payments.filter(p => p.debitAccount === 'Accounts Payable').reduce((sum, p) => sum + p.debitAmount, 0))}
+                  </div>
+                  <div className="text-sm text-gray-600">Accounts Payable</div>
+                </div>
+                <div className="text-center p-4 bg-purple-50 rounded">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {formatCurrency(payments.filter(p => p.creditAccount === 'Accounts Receivable').reduce((sum, p) => sum + p.creditAmount, 0))}
+                  </div>
+                  <div className="text-sm text-gray-600">Accounts Receivable</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

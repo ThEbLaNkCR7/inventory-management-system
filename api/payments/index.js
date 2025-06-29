@@ -2,6 +2,8 @@ import mongoose from 'mongoose'
 import Payment from '../../models/Payment.js'
 import Purchase from '../../models/Purchase.js'
 import Sale from '../../models/Sale.js'
+import Supplier from '../../models/Supplier.js'
+import Client from '../../models/Client.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 
@@ -40,200 +42,234 @@ async function dbConnect() {
   return cached.conn
 }
 
+// Helper function to generate transaction ID
+function generateTransactionId(type) {
+  const timestamp = Date.now().toString().slice(-8)
+  const random = Math.random().toString(36).substr(2, 4).toUpperCase()
+  return `${type}-${timestamp}-${random}`
+}
+
+// Helper function to create accounting entries
+function createAccountingEntries(transactionType, entityType, amount, description) {
+  let debitAccount, creditAccount, debitAmount, creditAmount
+
+  switch (transactionType) {
+    case 'Purchase':
+      // When paying a supplier: Debit Accounts Payable, Credit Cash/Bank
+      debitAccount = 'Accounts Payable'
+      creditAccount = 'Cash'
+      debitAmount = amount
+      creditAmount = amount
+      break
+      
+    case 'Sale':
+      // When receiving from client: Debit Cash/Bank, Credit Accounts Receivable
+      debitAccount = 'Cash'
+      creditAccount = 'Accounts Receivable'
+      debitAmount = amount
+      creditAmount = amount
+      break
+      
+    case 'Expense':
+      // When paying expense: Debit Expenses, Credit Cash/Bank
+      debitAccount = 'Expenses'
+      creditAccount = 'Cash'
+      debitAmount = amount
+      creditAmount = amount
+      break
+      
+    case 'Income':
+      // When receiving income: Debit Cash/Bank, Credit Revenue
+      debitAccount = 'Cash'
+      creditAccount = 'Revenue'
+      debitAmount = amount
+      creditAmount = amount
+      break
+      
+    default:
+      throw new Error('Invalid transaction type')
+  }
+
+  return { debitAccount, creditAccount, debitAmount, creditAmount }
+}
+
 export default async function handler(req, res) {
   await dbConnect()
   const { method } = req
-  
+
   switch (method) {
     case 'GET':
       try {
-        // Check if this is a stats request
-        const stats = req.query.stats
-        
+        const { stats, entityId, entityType, startDate, endDate } = req.query
+
         if (stats === 'true') {
-          // Return payment statistics
+          // Get payment statistics
+          const payments = await Payment.find({ isActive: true, status: 'Completed' })
+          
+          // Calculate purchase stats
+          const purchasePayments = payments.filter(p => p.transactionType === 'Purchase')
+          const purchaseStats = {
+            totalPurchases: purchasePayments.reduce((sum, p) => sum + p.amount, 0),
+            paidPurchases: purchasePayments.reduce((sum, p) => sum + p.amount, 0),
+            outstandingPurchases: 0, // Will be calculated from purchases
+            overduePurchases: 0
+          }
+
+          // Calculate sale stats
+          const salePayments = payments.filter(p => p.transactionType === 'Sale')
+          const saleStats = {
+            totalSales: salePayments.reduce((sum, p) => sum + p.amount, 0),
+            paidSales: salePayments.reduce((sum, p) => sum + p.amount, 0),
+            outstandingSales: 0, // Will be calculated from sales
+            overdueSales: 0
+          }
+
+          // Get outstanding amounts from purchases and sales
           const purchases = await Purchase.find({ isActive: true })
           const sales = await Sale.find({ isActive: true })
-          const payments = await Payment.find({ isActive: true })
           
-          // Calculate purchase payment statistics
-          const purchaseStats = purchases.reduce((acc, purchase) => {
-            const totalAmount = purchase.totalAmount || (purchase.quantityPurchased * purchase.purchasePrice)
-            const outstanding = totalAmount - (purchase.paidAmount || 0)
-            
-            acc.totalPurchases += totalAmount
-            acc.paidPurchases += purchase.paidAmount || 0
-            acc.outstandingPurchases += outstanding
-            
-            if (purchase.paymentStatus === "Overdue") {
-              acc.overduePurchases += outstanding
-            }
-            
-            return acc
-          }, {
-            totalPurchases: 0,
-            paidPurchases: 0,
-            outstandingPurchases: 0,
-            overduePurchases: 0
-          })
-          
-          // Calculate sale payment statistics
-          const saleStats = sales.reduce((acc, sale) => {
-            const totalAmount = sale.totalAmount || (sale.quantitySold * sale.salePrice)
-            const outstanding = totalAmount - (sale.paidAmount || 0)
-            
-            acc.totalSales += totalAmount
-            acc.paidSales += sale.paidAmount || 0
-            acc.outstandingSales += outstanding
-            
-            if (sale.paymentStatus === "Overdue") {
-              acc.overdueSales += outstanding
-            }
-            
-            return acc
-          }, {
-            totalSales: 0,
-            paidSales: 0,
-            outstandingSales: 0,
-            overdueSales: 0
-          })
-          
+          purchaseStats.outstandingPurchases = purchases.reduce((sum, p) => {
+            const paidAmount = purchasePayments
+              .filter(pay => pay.entityName === p.supplier)
+              .reduce((sum, pay) => sum + pay.amount, 0)
+            return sum + (p.quantityPurchased * p.purchasePrice - paidAmount)
+          }, 0)
+
+          saleStats.outstandingSales = sales.reduce((sum, s) => {
+            const paidAmount = salePayments
+              .filter(pay => pay.entityName === s.client)
+              .reduce((sum, pay) => sum + pay.amount, 0)
+            return sum + (s.quantitySold * s.salePrice - paidAmount)
+          }, 0)
+
+          const summary = {
+            totalOutstanding: purchaseStats.outstandingPurchases + saleStats.outstandingSales,
+            totalOverdue: 0, // Would need due dates to calculate
+            netCashFlow: saleStats.paidSales - purchaseStats.paidPurchases
+          }
+
           // Get recent payments
-          const recentPayments = await Payment.find({ isActive: true })
+          const recentPayments = await Payment.find({ isActive: true, status: 'Completed' })
             .sort({ paymentDate: -1 })
             .limit(10)
-          
-          // Get payment method distribution
-          const paymentMethodStats = payments.reduce((acc, payment) => {
-            acc[payment.paymentMethod] = (acc[payment.paymentMethod] || 0) + 1
-            return acc
-          }, {})
-          
-          // Get overdue transactions
-          const overduePurchases = purchases.filter(purchase => 
-            purchase.paymentStatus === "Overdue"
-          ).map(purchase => ({
-            id: purchase._id,
-            type: "Purchase",
-            supplier: purchase.supplier,
-            productName: purchase.productName,
-            totalAmount: purchase.totalAmount || (purchase.quantityPurchased * purchase.purchasePrice),
-            paidAmount: purchase.paidAmount || 0,
-            outstanding: (purchase.totalAmount || (purchase.quantityPurchased * purchase.purchasePrice)) - (purchase.paidAmount || 0),
-            dueDate: purchase.dueDate
-          }))
-          
-          const overdueSales = sales.filter(sale => 
-            sale.paymentStatus === "Overdue"
-          ).map(sale => ({
-            id: sale._id,
-            type: "Sale",
-            client: sale.client,
-            productName: sale.productName,
-            totalAmount: sale.totalAmount || (sale.quantitySold * sale.salePrice),
-            paidAmount: sale.paidAmount || 0,
-            outstanding: (sale.totalAmount || (sale.quantitySold * sale.salePrice)) - (sale.paidAmount || 0),
-            dueDate: sale.dueDate
-          }))
-          
-          return res.status(200).json({
+
+          // Get overdue transactions (simplified - would need due dates)
+          const overdueTransactions = []
+
+          res.status(200).json({
             purchaseStats,
             saleStats,
+            summary,
             recentPayments,
-            paymentMethodStats,
-            overdueTransactions: [...overduePurchases, ...overdueSales],
-            summary: {
-              totalOutstanding: purchaseStats.outstandingPurchases + saleStats.outstandingSales,
-              totalOverdue: purchaseStats.overduePurchases + saleStats.overdueSales,
-              netCashFlow: saleStats.paidSales - purchaseStats.paidPurchases
-            }
+            overdueTransactions
           })
+        } else {
+          // Get payments with filters
+          let query = { isActive: true }
+          
+          if (entityId) query.entityId = entityId
+          if (entityType) query.entityModel = entityType
+          if (startDate || endDate) {
+            query.paymentDate = {}
+            if (startDate) query.paymentDate.$gte = new Date(startDate)
+            if (endDate) query.paymentDate.$lte = new Date(endDate)
+          }
+
+          const payments = await Payment.find(query).sort({ paymentDate: -1 })
+          res.status(200).json({ payments })
         }
-        
-        // Return all payments (default behavior)
-        const payments = await Payment.find({ isActive: true }).sort({ paymentDate: -1 })
-        res.status(200).json(payments)
       } catch (error) {
-        console.error('Payment API error:', error)
-        res.status(500).json({ error: "Failed to fetch payments" })
+        console.error('Payment GET error:', error)
+        res.status(500).json({ message: 'Server error' })
       }
       break
+
     case 'POST':
       try {
-        const { transactionId, transactionType, amount, paymentDate, paymentMethod, referenceNumber, notes, paidBy, recordedBy } = req.body
+        const paymentData = req.body
         
-        // Create the payment record
+        // Generate transaction ID
+        const transactionId = generateTransactionId(paymentData.transactionType)
+        
+        // Create accounting entries
+        const accountingEntries = createAccountingEntries(
+          paymentData.transactionType,
+          paymentData.entityModel,
+          paymentData.amount,
+          paymentData.description
+        )
+
         const payment = new Payment({
+          ...paymentData,
           transactionId,
-          transactionType,
-          amount,
-          paymentDate,
-          paymentMethod,
-          referenceNumber,
-          notes,
-          paidBy,
-          recordedBy
+          ...accountingEntries,
+          paymentDate: new Date(paymentData.paymentDate)
         })
-        
+
         await payment.save()
-        
-        // Update the transaction's payment status
-        if (transactionType === "Purchase") {
-          const purchase = await Purchase.findById(transactionId)
-          if (purchase) {
-            const newPaidAmount = purchase.paidAmount + amount
-            const totalAmount = purchase.totalAmount || (purchase.quantityPurchased * purchase.purchasePrice)
-            
-            let paymentStatus = "Pending"
-            if (newPaidAmount >= totalAmount) {
-              paymentStatus = "Paid"
-            } else if (newPaidAmount > 0) {
-              paymentStatus = "Partial"
-            }
-            
-            // Check if overdue
-            if (purchase.dueDate && new Date() > new Date(purchase.dueDate) && paymentStatus !== "Paid") {
-              paymentStatus = "Overdue"
-            }
-            
-            await Purchase.findByIdAndUpdate(transactionId, {
-              paidAmount: newPaidAmount,
-              paymentStatus
-            })
-          }
-        } else if (transactionType === "Sale") {
-          const sale = await Sale.findById(transactionId)
-          if (sale) {
-            const newPaidAmount = sale.paidAmount + amount
-            const totalAmount = sale.totalAmount || (sale.quantitySold * sale.salePrice)
-            
-            let paymentStatus = "Pending"
-            if (newPaidAmount >= totalAmount) {
-              paymentStatus = "Paid"
-            } else if (newPaidAmount > 0) {
-              paymentStatus = "Partial"
-            }
-            
-            // Check if overdue
-            if (sale.dueDate && new Date() > new Date(sale.dueDate) && paymentStatus !== "Paid") {
-              paymentStatus = "Overdue"
-            }
-            
-            await Sale.findByIdAndUpdate(transactionId, {
-              paidAmount: newPaidAmount,
-              paymentStatus
-            })
-          }
-        }
-        
         res.status(201).json(payment)
       } catch (error) {
         console.error('Payment POST error:', error)
-        res.status(500).json({ error: "Failed to record payment" })
+        res.status(500).json({ message: 'Server error' })
       }
       break
+
+    case 'PUT':
+      try {
+        const { id } = req.query
+        const updateData = req.body
+
+        if (updateData.amount) {
+          // Recalculate accounting entries if amount changes
+          const accountingEntries = createAccountingEntries(
+            updateData.transactionType,
+            updateData.entityModel,
+            updateData.amount,
+            updateData.description
+          )
+          updateData.debitAmount = accountingEntries.debitAmount
+          updateData.creditAmount = accountingEntries.creditAmount
+        }
+
+        const payment = await Payment.findByIdAndUpdate(
+          id,
+          updateData,
+          { new: true, runValidators: true }
+        )
+
+        if (!payment) {
+          return res.status(404).json({ message: 'Payment not found' })
+        }
+
+        res.status(200).json(payment)
+      } catch (error) {
+        console.error('Payment PUT error:', error)
+        res.status(500).json({ message: 'Server error' })
+      }
+      break
+
+    case 'DELETE':
+      try {
+        const { id } = req.query
+        const payment = await Payment.findByIdAndUpdate(
+          id,
+          { isActive: false },
+          { new: true }
+        )
+
+        if (!payment) {
+          return res.status(404).json({ message: 'Payment not found' })
+        }
+
+        res.status(200).json({ message: 'Payment deleted successfully' })
+      } catch (error) {
+        console.error('Payment DELETE error:', error)
+        res.status(500).json({ message: 'Server error' })
+      }
+      break
+
     default:
-      res.setHeader('Allow', ['GET', 'POST'])
+      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE'])
       res.status(405).end(`Method ${method} Not Allowed`)
   }
 } 
