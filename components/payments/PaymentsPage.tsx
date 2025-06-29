@@ -83,15 +83,69 @@ interface Payment {
   status: string
 }
 
+interface Client {
+  _id: string
+  name: string
+  email: string
+  phone: string
+  company: string
+  address: string
+  taxId: string
+  creditLimit: number
+  currentBalance: number
+  totalSpent: number
+  orders: number
+  lastOrder: string
+  paymentTerms: string
+  notes: string
+  isActive: boolean
+}
+
+interface Supplier {
+  _id: string
+  name: string
+  email: string
+  phone: string
+  company: string
+  status: string
+  address: string
+  orders: number
+  totalSpent: number
+  lastOrder: string
+  creditLimit: number
+  paymentTerms: string
+  notes: string
+  taxId?: string
+  isActive: boolean
+}
+
+interface ClientSummary {
+  name: string
+  transactions: Payment[]
+  totalOutstanding: number
+}
+
+interface SupplierSummary {
+  name: string
+  transactions: Payment[]
+  totalOutstanding: number
+}
+
 export default function PaymentsPage() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [stats, setStats] = useState<PaymentStats | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
+  const [clientList, setClientList] = useState<Client[]>([])
+  const [supplierList, setSupplierList] = useState<Supplier[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isAddEntityDialogOpen, setIsAddEntityDialogOpen] = useState(false)
+  const [isEditEntityDialogOpen, setIsEditEntityDialogOpen] = useState(false)
+  const [entityType, setEntityType] = useState<"Supplier" | "Client">("Supplier")
+  const [editingEntity, setEditingEntity] = useState<any>(null)
   const [formData, setFormData] = useState({
     transactionType: "Purchase",
     entityName: "",
@@ -105,10 +159,22 @@ export default function PaymentsPage() {
     notes: "",
     paidBy: "",
   })
+  const [entityFormData, setEntityFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+    address: "",
+    taxId: "",
+    creditLimit: 0,
+    paymentTerms: "30 days",
+    notes: "",
+  })
 
   useEffect(() => {
     fetchPaymentStats()
     fetchPayments()
+    fetchEntities()
   }, [])
 
   const fetchPaymentStats = async () => {
@@ -137,6 +203,27 @@ export default function PaymentsPage() {
       toast({
         title: "Error",
         description: "Failed to fetch payments",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const fetchEntities = async () => {
+    try {
+      const [clientsRes, suppliersRes] = await Promise.all([
+        fetch("/api/clients"),
+        fetch("/api/suppliers")
+      ])
+      
+      const clientsData = await clientsRes.json()
+      const suppliersData = await suppliersRes.json()
+      
+      setClientList(clientsData.clients || [])
+      setSupplierList(suppliersData.suppliers || [])
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch entities",
         variant: "destructive"
       })
     }
@@ -182,6 +269,113 @@ export default function PaymentsPage() {
       toast({
         title: "Error",
         description: "Failed to record payment",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleAddEntity = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const endpoint = entityType === "Supplier" ? "/api/suppliers" : "/api/clients"
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entityFormData)
+      })
+
+      if (!response.ok) throw new Error("Failed to add entity")
+
+      toast({
+        title: "Success",
+        description: `${entityType} added successfully`
+      })
+
+      setIsAddEntityDialogOpen(false)
+      setEntityFormData({
+        name: "",
+        email: "",
+        phone: "",
+        company: "",
+        address: "",
+        taxId: "",
+        creditLimit: 0,
+        paymentTerms: "30 days",
+        notes: "",
+      })
+      
+      fetchEntities()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to add ${entityType.toLowerCase()}`,
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleEditEntity = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingEntity) return
+
+    try {
+      const endpoint = entityType === "Supplier" ? `/api/suppliers/${editingEntity._id}` : `/api/clients/${editingEntity._id}`
+      const response = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entityFormData)
+      })
+
+      if (!response.ok) throw new Error("Failed to update entity")
+
+      toast({
+        title: "Success",
+        description: `${entityType} updated successfully`
+      })
+
+      setIsEditEntityDialogOpen(false)
+      setEditingEntity(null)
+      setEntityFormData({
+        name: "",
+        email: "",
+        phone: "",
+        company: "",
+        address: "",
+        taxId: "",
+        creditLimit: 0,
+        paymentTerms: "30 days",
+        notes: "",
+      })
+      
+      fetchEntities()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to update ${entityType.toLowerCase()}`,
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleDeleteEntity = async (entityId: string) => {
+    try {
+      const endpoint = entityType === "Supplier" ? `/api/suppliers/${entityId}` : `/api/clients/${entityId}`
+      const response = await fetch(endpoint, {
+        method: "DELETE"
+      })
+
+      if (!response.ok) throw new Error("Failed to delete entity")
+
+      toast({
+        title: "Success",
+        description: `${entityType} deleted successfully`
+      })
+      
+      fetchEntities()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to delete ${entityType.toLowerCase()}`,
         variant: "destructive"
       })
     }
@@ -499,11 +693,12 @@ export default function PaymentsPage() {
 
       {/* Enhanced Tabs for Detailed Tracking */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="suppliers">Supplier Expenses</TabsTrigger>
           <TabsTrigger value="clients">Client Revenue</TabsTrigger>
           <TabsTrigger value="ledger">General Ledger</TabsTrigger>
+          <TabsTrigger value="entities">Manage Entities</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -756,6 +951,116 @@ export default function PaymentsPage() {
           </Card>
         </TabsContent>
 
+        {/* Manage Entities Tab */}
+        <TabsContent value="entities" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold">Manage Clients & Suppliers</h2>
+              <p className="text-muted-foreground">
+                Add, edit, and manage your clients and suppliers
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Select value={entityType} onValueChange={(value: "Supplier" | "Client") => setEntityType(value)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Supplier">Suppliers</SelectItem>
+                  <SelectItem value="Client">Clients</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={() => setIsAddEntityDialogOpen(true)} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Add {entityType}
+              </Button>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {entityType === "Supplier" ? <Building2 className="h-5 w-5" /> : <Users className="h-5 w-5" />}
+                {entityType} List
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Input
+                  placeholder={`Search ${entityType.toLowerCase()}s...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm"
+                />
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Credit Limit</TableHead>
+                      <TableHead>Payment Terms</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(entityType === "Supplier" ? supplierList : clientList)
+                      .filter(entity => 
+                        entity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        entity.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        entity.email.toLowerCase().includes(searchTerm.toLowerCase())
+                      )
+                      .map((entity) => (
+                        <TableRow key={entity._id}>
+                          <TableCell className="font-medium">{entity.name}</TableCell>
+                          <TableCell>{entity.company}</TableCell>
+                          <TableCell>{entity.email}</TableCell>
+                          <TableCell>{entity.phone}</TableCell>
+                          <TableCell>{formatCurrency(entity.creditLimit || 0)}</TableCell>
+                          <TableCell>{entity.paymentTerms || "30 days"}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingEntity(entity)
+                                  setEntityFormData({
+                                    name: entity.name,
+                                    email: entity.email,
+                                    phone: entity.phone,
+                                    company: entity.company,
+                                    address: entity.address,
+                                    taxId: entity.taxId || "",
+                                    creditLimit: entity.creditLimit || 0,
+                                    paymentTerms: entity.paymentTerms || "30 days",
+                                    notes: entity.notes || "",
+                                  })
+                                  setIsEditEntityDialogOpen(true)
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteEntity(entity._id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* Analytics Tab */}
         <TabsContent value="analytics" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -839,6 +1144,246 @@ export default function PaymentsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Add Entity Dialog */}
+      <Dialog open={isAddEntityDialogOpen} onOpenChange={setIsAddEntityDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add New {entityType}</DialogTitle>
+            <DialogDescription>
+              Enter the details for the new {entityType.toLowerCase()}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddEntity} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Name *</Label>
+                <Input
+                  value={entityFormData.name}
+                  onChange={(e) => setEntityFormData({...entityFormData, name: e.target.value})}
+                  placeholder={`Enter ${entityType.toLowerCase()} name`}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Company</Label>
+                <Input
+                  value={entityFormData.company}
+                  onChange={(e) => setEntityFormData({...entityFormData, company: e.target.value})}
+                  placeholder="Company name"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={entityFormData.email}
+                  onChange={(e) => setEntityFormData({...entityFormData, email: e.target.value})}
+                  placeholder="Email address"
+                />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input
+                  value={entityFormData.phone}
+                  onChange={(e) => setEntityFormData({...entityFormData, phone: e.target.value})}
+                  placeholder="Phone number"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Address</Label>
+              <Textarea
+                value={entityFormData.address}
+                onChange={(e) => setEntityFormData({...entityFormData, address: e.target.value})}
+                placeholder="Full address"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Tax ID</Label>
+                <Input
+                  value={entityFormData.taxId}
+                  onChange={(e) => setEntityFormData({...entityFormData, taxId: e.target.value})}
+                  placeholder="Tax identification number"
+                />
+              </div>
+              <div>
+                <Label>Credit Limit</Label>
+                <Input
+                  type="number"
+                  value={entityFormData.creditLimit}
+                  onChange={(e) => setEntityFormData({...entityFormData, creditLimit: parseFloat(e.target.value) || 0})}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Payment Terms</Label>
+                <Select 
+                  value={entityFormData.paymentTerms} 
+                  onValueChange={(value) => setEntityFormData({...entityFormData, paymentTerms: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Immediate">Immediate</SelectItem>
+                    <SelectItem value="7 days">7 days</SelectItem>
+                    <SelectItem value="15 days">15 days</SelectItem>
+                    <SelectItem value="30 days">30 days</SelectItem>
+                    <SelectItem value="60 days">60 days</SelectItem>
+                    <SelectItem value="90 days">90 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={entityFormData.notes}
+                onChange={(e) => setEntityFormData({...entityFormData, notes: e.target.value})}
+                placeholder="Additional notes"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsAddEntityDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Add {entityType}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Entity Dialog */}
+      <Dialog open={isEditEntityDialogOpen} onOpenChange={setIsEditEntityDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit {entityType}</DialogTitle>
+            <DialogDescription>
+              Update the details for this {entityType.toLowerCase()}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditEntity} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Name *</Label>
+                <Input
+                  value={entityFormData.name}
+                  onChange={(e) => setEntityFormData({...entityFormData, name: e.target.value})}
+                  placeholder={`Enter ${entityType.toLowerCase()} name`}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Company</Label>
+                <Input
+                  value={entityFormData.company}
+                  onChange={(e) => setEntityFormData({...entityFormData, company: e.target.value})}
+                  placeholder="Company name"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={entityFormData.email}
+                  onChange={(e) => setEntityFormData({...entityFormData, email: e.target.value})}
+                  placeholder="Email address"
+                />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input
+                  value={entityFormData.phone}
+                  onChange={(e) => setEntityFormData({...entityFormData, phone: e.target.value})}
+                  placeholder="Phone number"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Address</Label>
+              <Textarea
+                value={entityFormData.address}
+                onChange={(e) => setEntityFormData({...entityFormData, address: e.target.value})}
+                placeholder="Full address"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Tax ID</Label>
+                <Input
+                  value={entityFormData.taxId}
+                  onChange={(e) => setEntityFormData({...entityFormData, taxId: e.target.value})}
+                  placeholder="Tax identification number"
+                />
+              </div>
+              <div>
+                <Label>Credit Limit</Label>
+                <Input
+                  type="number"
+                  value={entityFormData.creditLimit}
+                  onChange={(e) => setEntityFormData({...entityFormData, creditLimit: parseFloat(e.target.value) || 0})}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Payment Terms</Label>
+                <Select 
+                  value={entityFormData.paymentTerms} 
+                  onValueChange={(value) => setEntityFormData({...entityFormData, paymentTerms: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Immediate">Immediate</SelectItem>
+                    <SelectItem value="7 days">7 days</SelectItem>
+                    <SelectItem value="15 days">15 days</SelectItem>
+                    <SelectItem value="30 days">30 days</SelectItem>
+                    <SelectItem value="60 days">60 days</SelectItem>
+                    <SelectItem value="90 days">90 days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={entityFormData.notes}
+                onChange={(e) => setEntityFormData({...entityFormData, notes: e.target.value})}
+                placeholder="Additional notes"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditEntityDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Update {entityType}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 
