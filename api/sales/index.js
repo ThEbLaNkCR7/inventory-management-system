@@ -52,19 +52,7 @@ export default async function handler(req, res) {
       break
     case 'POST':
       try {
-        const saleData = req.body
-        
-        // Calculate total amount and set payment defaults
-        const totalAmount = saleData.quantitySold * saleData.salePrice
-        const sale = new Sale({
-          ...saleData,
-          totalAmount,
-          paidAmount: 0,
-          paymentStatus: "Pending",
-          dueDate: saleData.dueDate || null,
-          paymentTerms: saleData.paymentTerms || "Immediate"
-        })
-        
+        const sale = new Sale(req.body)
         await sale.save()
         res.status(201).json(sale)
       } catch (error) {

@@ -53,8 +53,6 @@ export default function PurchasesPage() {
     quantityPurchased: 0,
     purchasePrice: 0,
     purchaseDate: new Date().toISOString().split("T")[0],
-    paymentTerms: "Immediate",
-    dueDate: "",
   })
   const [editReason, setEditReason] = useState("")
   const [deleteReason, setDeleteReason] = useState("")
@@ -104,8 +102,6 @@ export default function PurchasesPage() {
       quantityPurchased: 0,
       purchasePrice: 0,
       purchaseDate: new Date().toISOString().split("T")[0],
-      paymentTerms: "Immediate",
-      dueDate: "",
     })
     setEditReason("")
   }
@@ -184,8 +180,6 @@ export default function PurchasesPage() {
       quantityPurchased: purchase.quantityPurchased,
       purchasePrice: purchase.purchasePrice,
       purchaseDate: purchase.purchaseDate,
-      paymentTerms: purchase.paymentTerms,
-      dueDate: purchase.dueDate,
     })
     setIsEditDialogOpen(true)
   }
@@ -224,7 +218,7 @@ export default function PurchasesPage() {
           updateProgress("Submitting for approval...", 4, 4)
           const supplierName = formData.supplier === "custom" ? formData.customSupplier : formData.supplier
           const { customSupplier, ...purchaseData } = formData
-          submitChange({ type: "purchase", action: "update", entityId: editingPurchase.id, originalData: { productName: editingPurchase.productName, supplier: editingPurchase.supplier, quantityPurchased: editingPurchase.quantityPurchased, purchasePrice: editingPurchase.purchasePrice, purchaseDate: editingPurchase.purchaseDate, paymentTerms: editingPurchase.paymentTerms, dueDate: editingPurchase.dueDate }, proposedData: { ...purchaseData, productName: product.name, supplier: supplierName }, requestedBy: user?.email || "", reason: editReason, })
+          submitChange({ type: "purchase", action: "update", entityId: editingPurchase.id, originalData: { productName: editingPurchase.productName, supplier: editingPurchase.supplier, quantityPurchased: editingPurchase.quantityPurchased, purchasePrice: editingPurchase.purchasePrice, purchaseDate: editingPurchase.purchaseDate }, proposedData: { ...purchaseData, productName: product.name, supplier: supplierName }, requestedBy: user?.email || "", reason: editReason, })
           toast({ title: "Submitted", description: "Purchase changes submitted for admin approval." })
         }
         
@@ -289,7 +283,7 @@ export default function PurchasesPage() {
           await new Promise(resolve => setTimeout(resolve, 500))
           
           updateProgress("Submitting for approval...", 3, 3)
-          submitChange({ type: "purchase", action: "delete", entityId: deletingPurchase.id, originalData: { productName: deletingPurchase.productName, supplier: deletingPurchase.supplier, quantityPurchased: deletingPurchase.quantityPurchased, purchasePrice: deletingPurchase.purchasePrice, purchaseDate: deletingPurchase.purchaseDate, paymentTerms: deletingPurchase.paymentTerms, dueDate: deletingPurchase.dueDate }, proposedData: {}, requestedBy: user?.email || "", reason: deleteReason, })
+          submitChange({ type: "purchase", action: "delete", entityId: deletingPurchase.id, originalData: { productName: deletingPurchase.productName, supplier: deletingPurchase.supplier, quantityPurchased: deletingPurchase.quantityPurchased, purchasePrice: deletingPurchase.purchasePrice, purchaseDate: deletingPurchase.purchaseDate }, proposedData: {}, requestedBy: user?.email || "", reason: deleteReason, })
           toast({ title: "Submitted", description: "Purchase deletion submitted for admin approval." })
         }
         setIsDeleteDialogOpen(false)
@@ -489,33 +483,6 @@ export default function PurchasesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="paymentTerms">Payment Terms *</Label>
-                  <Select
-                    value={formData.paymentTerms}
-                    onValueChange={(value) => setFormData({ ...formData, paymentTerms: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select payment terms" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Immediate">Immediate</SelectItem>
-                      <SelectItem value="Net 30">Net 30</SelectItem>
-                      <SelectItem value="Net 60">Net 60</SelectItem>
-                      <SelectItem value="Net 90">Net 90</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dueDate">Due Date</Label>
-                  <Input
-                    id="dueDate"
-                    type="date"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="reason">Reason for Changes {user?.role !== "admin" && "*"}</Label>
                   <Textarea
                     id="reason"
@@ -601,107 +568,71 @@ export default function PurchasesPage() {
                       <TableHead>Quantity</TableHead>
                       <TableHead>Unit Price</TableHead>
                       <TableHead>Total</TableHead>
-                      <TableHead>Payment Status</TableHead>
-                      <TableHead>Paid Amount</TableHead>
-                      <TableHead>Due Date</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPurchases.map((purchase) => {
-                      const totalAmount = purchase.totalAmount || (purchase.quantityPurchased * purchase.purchasePrice)
-                      const paidAmount = purchase.paidAmount || 0
-                      const outstanding = totalAmount - paidAmount
-                      
-                      return (
-                        <TableRow key={purchase.id} className="hover:bg-gray-50 transition-colors duration-150">
-                          <TableCell className="font-medium">
-                            <span
-                              className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                              onClick={() => {
-                                const product = products.find(p => p.name === purchase.productName)
-                                if (product) handleProductClick(product)
-                              }}
+                    {filteredPurchases.map((purchase) => (
+                      <TableRow key={purchase.id} className="hover:bg-gray-50 transition-colors duration-150">
+                        <TableCell className="font-medium">
+                          <span
+                            className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            onClick={() => {
+                              const product = products.find(p => p.name === purchase.productName)
+                              if (product) handleProductClick(product)
+                            }}
+                          >
+                            {purchase.productName}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <span
+                            className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                            onClick={() => {
+                              handleSupplierClick(purchase.supplier)
+                            }}
+                          >
+                            {purchase.supplier}
+                          </span>
+                        </TableCell>
+                        <TableCell>{purchase.supplierType || "Company"}</TableCell>
+                        <TableCell>{purchase.quantityPurchased}</TableCell>
+                        <TableCell>Rs {purchase.purchasePrice.toFixed(2)}</TableCell>
+                        <TableCell className="font-medium">
+                          Rs {(purchase.quantityPurchased * purchase.purchasePrice).toFixed(2)}
+                        </TableCell>
+                        <TableCell>{formatNepaliDateForTable(purchase.purchaseDate)}</TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="neutralOutline"
+                              onClick={() => handleView(purchase)}
+                              className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
                             >
-                              {purchase.productName}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <span
-                              className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
-                              onClick={() => {
-                                handleSupplierClick(purchase.supplier)
-                              }}
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="neutralOutline"
+                              onClick={() => handleEdit(purchase)}
+                              className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                             >
-                              {purchase.supplier}
-                            </span>
-                          </TableCell>
-                          <TableCell>{purchase.supplierType || "Company"}</TableCell>
-                          <TableCell>{purchase.quantityPurchased}</TableCell>
-                          <TableCell>Rs {purchase.purchasePrice.toFixed(2)}</TableCell>
-                          <TableCell className="font-medium">
-                            Rs {totalAmount.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={
-                                purchase.paymentStatus === "Paid" ? "default" :
-                                purchase.paymentStatus === "Partial" ? "secondary" :
-                                purchase.paymentStatus === "Overdue" ? "destructive" : "outline"
-                              }
-                              className={
-                                purchase.paymentStatus === "Paid" ? "bg-green-100 text-green-800" :
-                                purchase.paymentStatus === "Partial" ? "bg-yellow-100 text-yellow-800" :
-                                purchase.paymentStatus === "Overdue" ? "bg-red-100 text-red-800" : ""
-                              }
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="neutralOutline"
+                              onClick={() => handleDelete(purchase)}
+                              className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
                             >
-                              {purchase.paymentStatus || "Pending"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div className="font-medium text-green-600">Rs {paidAmount.toFixed(2)}</div>
-                              {outstanding > 0 && (
-                                <div className="text-xs text-red-600">Outstanding: Rs {outstanding.toFixed(2)}</div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {purchase.dueDate ? formatNepaliDateForTable(purchase.dueDate) : "N/A"}
-                          </TableCell>
-                          <TableCell>{formatNepaliDateForTable(purchase.purchaseDate)}</TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button
-                                size="sm"
-                                variant="neutralOutline"
-                                onClick={() => handleView(purchase)}
-                                className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="neutralOutline"
-                                onClick={() => handleEdit(purchase)}
-                                className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="neutralOutline"
-                                onClick={() => handleDelete(purchase)}
-                                className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
                 {filteredPurchases.length === 0 && (
@@ -722,106 +653,70 @@ export default function PurchasesPage() {
                       <TableHead>Quantity</TableHead>
                       <TableHead>Unit Price</TableHead>
                       <TableHead>Total</TableHead>
-                      <TableHead>Payment Status</TableHead>
-                      <TableHead>Paid Amount</TableHead>
-                      <TableHead>Due Date</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPurchases.map((purchase) => {
-                      const totalAmount = purchase.totalAmount || (purchase.quantityPurchased * purchase.purchasePrice)
-                      const paidAmount = purchase.paidAmount || 0
-                      const outstanding = totalAmount - paidAmount
-                      
-                      return (
-                        <TableRow key={purchase.id} className="hover:bg-gray-50 transition-colors duration-150">
-                          <TableCell className="font-medium">
-                            <span
-                              className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                              onClick={() => {
-                                const product = products.find(p => p.name === purchase.productName)
-                                if (product) handleProductClick(product)
-                              }}
+                    {filteredPurchases.map((purchase) => (
+                      <TableRow key={purchase.id} className="hover:bg-gray-50 transition-colors duration-150">
+                        <TableCell className="font-medium">
+                          <span
+                            className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            onClick={() => {
+                              const product = products.find(p => p.name === purchase.productName)
+                              if (product) handleProductClick(product)
+                            }}
+                          >
+                            {purchase.productName}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <span
+                            className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                            onClick={() => {
+                              handleSupplierClick(purchase.supplier)
+                            }}
+                          >
+                            {purchase.supplier}
+                          </span>
+                        </TableCell>
+                        <TableCell>{purchase.quantityPurchased}</TableCell>
+                        <TableCell>Rs {purchase.purchasePrice.toFixed(2)}</TableCell>
+                        <TableCell className="font-medium">
+                          Rs {(purchase.quantityPurchased * purchase.purchasePrice).toFixed(2)}
+                        </TableCell>
+                        <TableCell>{formatNepaliDateForTable(purchase.purchaseDate)}</TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="neutralOutline"
+                              onClick={() => handleView(purchase)}
+                              className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
                             >
-                              {purchase.productName}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <span
-                              className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
-                              onClick={() => {
-                                handleSupplierClick(purchase.supplier)
-                              }}
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="neutralOutline"
+                              onClick={() => handleEdit(purchase)}
+                              className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                             >
-                              {purchase.supplier}
-                            </span>
-                          </TableCell>
-                          <TableCell>{purchase.quantityPurchased}</TableCell>
-                          <TableCell>Rs {purchase.purchasePrice.toFixed(2)}</TableCell>
-                          <TableCell className="font-medium">
-                            Rs {totalAmount.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={
-                                purchase.paymentStatus === "Paid" ? "default" :
-                                purchase.paymentStatus === "Partial" ? "secondary" :
-                                purchase.paymentStatus === "Overdue" ? "destructive" : "outline"
-                              }
-                              className={
-                                purchase.paymentStatus === "Paid" ? "bg-green-100 text-green-800" :
-                                purchase.paymentStatus === "Partial" ? "bg-yellow-100 text-yellow-800" :
-                                purchase.paymentStatus === "Overdue" ? "bg-red-100 text-red-800" : ""
-                              }
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="neutralOutline"
+                              onClick={() => handleDelete(purchase)}
+                              className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
                             >
-                              {purchase.paymentStatus || "Pending"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div className="font-medium text-green-600">Rs {paidAmount.toFixed(2)}</div>
-                              {outstanding > 0 && (
-                                <div className="text-xs text-red-600">Outstanding: Rs {outstanding.toFixed(2)}</div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {purchase.dueDate ? formatNepaliDateForTable(purchase.dueDate) : "N/A"}
-                          </TableCell>
-                          <TableCell>{formatNepaliDateForTable(purchase.purchaseDate)}</TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button
-                                size="sm"
-                                variant="neutralOutline"
-                                onClick={() => handleView(purchase)}
-                                className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="neutralOutline"
-                                onClick={() => handleEdit(purchase)}
-                                className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="neutralOutline"
-                                onClick={() => handleDelete(purchase)}
-                                className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
                 {filteredPurchases.length === 0 && (
@@ -842,106 +737,70 @@ export default function PurchasesPage() {
                       <TableHead>Quantity</TableHead>
                       <TableHead>Unit Price</TableHead>
                       <TableHead>Total</TableHead>
-                      <TableHead>Payment Status</TableHead>
-                      <TableHead>Paid Amount</TableHead>
-                      <TableHead>Due Date</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPurchases.map((purchase) => {
-                      const totalAmount = purchase.totalAmount || (purchase.quantityPurchased * purchase.purchasePrice)
-                      const paidAmount = purchase.paidAmount || 0
-                      const outstanding = totalAmount - paidAmount
-                      
-                      return (
-                        <TableRow key={purchase.id} className="hover:bg-gray-50 transition-colors duration-150">
-                          <TableCell className="font-medium">
-                            <span
-                              className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                              onClick={() => {
-                                const product = products.find(p => p.name === purchase.productName)
-                                if (product) handleProductClick(product)
-                              }}
+                    {filteredPurchases.map((purchase) => (
+                      <TableRow key={purchase.id} className="hover:bg-gray-50 transition-colors duration-150">
+                        <TableCell className="font-medium">
+                          <span
+                            className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            onClick={() => {
+                              const product = products.find(p => p.name === purchase.productName)
+                              if (product) handleProductClick(product)
+                            }}
+                          >
+                            {purchase.productName}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <span
+                            className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                            onClick={() => {
+                              handleSupplierClick(purchase.supplier)
+                            }}
+                          >
+                            {purchase.supplier}
+                          </span>
+                        </TableCell>
+                        <TableCell>{purchase.quantityPurchased}</TableCell>
+                        <TableCell>Rs {purchase.purchasePrice.toFixed(2)}</TableCell>
+                        <TableCell className="font-medium">
+                          Rs {(purchase.quantityPurchased * purchase.purchasePrice).toFixed(2)}
+                        </TableCell>
+                        <TableCell>{formatNepaliDateForTable(purchase.purchaseDate)}</TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="neutralOutline"
+                              onClick={() => handleView(purchase)}
+                              className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
                             >
-                              {purchase.productName}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <span
-                              className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
-                              onClick={() => {
-                                handleSupplierClick(purchase.supplier)
-                              }}
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="neutralOutline"
+                              onClick={() => handleEdit(purchase)}
+                              className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                             >
-                              {purchase.supplier}
-                            </span>
-                          </TableCell>
-                          <TableCell>{purchase.quantityPurchased}</TableCell>
-                          <TableCell>Rs {purchase.purchasePrice.toFixed(2)}</TableCell>
-                          <TableCell className="font-medium">
-                            Rs {totalAmount.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={
-                                purchase.paymentStatus === "Paid" ? "default" :
-                                purchase.paymentStatus === "Partial" ? "secondary" :
-                                purchase.paymentStatus === "Overdue" ? "destructive" : "outline"
-                              }
-                              className={
-                                purchase.paymentStatus === "Paid" ? "bg-green-100 text-green-800" :
-                                purchase.paymentStatus === "Partial" ? "bg-yellow-100 text-yellow-800" :
-                                purchase.paymentStatus === "Overdue" ? "bg-red-100 text-red-800" : ""
-                              }
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="neutralOutline"
+                              onClick={() => handleDelete(purchase)}
+                              className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
                             >
-                              {purchase.paymentStatus || "Pending"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div className="font-medium text-green-600">Rs {paidAmount.toFixed(2)}</div>
-                              {outstanding > 0 && (
-                                <div className="text-xs text-red-600">Outstanding: Rs {outstanding.toFixed(2)}</div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {purchase.dueDate ? formatNepaliDateForTable(purchase.dueDate) : "N/A"}
-                          </TableCell>
-                          <TableCell>{formatNepaliDateForTable(purchase.purchaseDate)}</TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button
-                                size="sm"
-                                variant="neutralOutline"
-                                onClick={() => handleView(purchase)}
-                                className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="neutralOutline"
-                                onClick={() => handleEdit(purchase)}
-                                className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="neutralOutline"
-                                onClick={() => handleDelete(purchase)}
-                                className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
                 {filteredPurchases.length === 0 && (
@@ -1214,33 +1073,6 @@ export default function PurchasesPage() {
                 value={formData.purchaseDate}
                 onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
                 required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-paymentTerms">Payment Terms *</Label>
-              <Select
-                value={formData.paymentTerms}
-                onValueChange={(value) => setFormData({ ...formData, paymentTerms: value })}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment terms" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Immediate">Immediate</SelectItem>
-                  <SelectItem value="Net 30">Net 30</SelectItem>
-                  <SelectItem value="Net 60">Net 60</SelectItem>
-                  <SelectItem value="Net 90">Net 90</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-dueDate">Due Date</Label>
-              <Input
-                id="edit-dueDate"
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
               />
             </div>
             <div className="space-y-2">

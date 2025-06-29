@@ -30,12 +30,6 @@ export interface Purchase {
   quantityPurchased: number
   purchasePrice: number
   purchaseDate: string
-  // Payment tracking fields
-  totalAmount?: number
-  paidAmount?: number
-  paymentStatus?: "Pending" | "Partial" | "Paid" | "Overdue"
-  dueDate?: string
-  paymentTerms?: string
   isActive?: boolean
 }
 
@@ -48,12 +42,6 @@ export interface Sale {
   quantitySold: number
   salePrice: number
   saleDate: string
-  // Payment tracking fields
-  totalAmount?: number
-  paidAmount?: number
-  paymentStatus?: "Pending" | "Partial" | "Paid" | "Overdue"
-  dueDate?: string
-  paymentTerms?: string
   isActive?: boolean
 }
 
@@ -829,59 +817,21 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Payment functions
+  // Payment functions - removed as payment tracking is now handled separately
   const recordPayment = async (payment: Omit<Payment, "id">) => {
-    try {
-      console.log("📋 Recording new payment:", payment.transactionId)
-      const res = await fetch("/api/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payment),
-      })
-      if (!res.ok) throw new Error("Failed to record payment")
-      const newPayment = await res.json()
-      console.log("✅ Payment recorded successfully:", payment.transactionId)
-      
-      // Auto-refresh to ensure data consistency
-      setTimeout(() => refreshData(), 500)
-    } catch (error) {
-      console.error("❌ Record payment error:", error)
-      throw error
-    }
+    console.log("Payment recording moved to separate payment system")
   }
 
   const getPaymentStats = async () => {
-    try {
-      console.log("📊 Getting payment stats...")
-      const res = await fetch("/api/payments/stats")
-      if (!res.ok) throw new Error("Failed to get payment stats")
-      const stats = await res.json()
-      console.log("✅ Payment stats retrieved successfully")
-      return stats
-    } catch (error) {
-      console.error("❌ Get payment stats error:", error)
-      throw error
-    }
+    return { totalPayments: 0, outstandingAmount: 0, overdueAmount: 0 }
   }
 
   const getOutstandingPayments = () => {
-    const outstandingPurchases = purchases.filter(purchase => 
-      purchase.paymentStatus !== "Paid" && (purchase.paidAmount || 0) < (purchase.totalAmount || purchase.quantityPurchased * purchase.purchasePrice)
-    )
-    const outstandingSales = sales.filter(sale => 
-      sale.paymentStatus !== "Paid" && (sale.paidAmount || 0) < (sale.totalAmount || sale.quantitySold * sale.salePrice)
-    )
-    return { purchases: outstandingPurchases, sales: outstandingSales }
+    return { purchases: [], sales: [] }
   }
 
   const getOverduePayments = () => {
-    const overduePurchases = purchases.filter(purchase => 
-      purchase.paymentStatus === "Overdue"
-    )
-    const overdueSales = sales.filter(sale => 
-      sale.paymentStatus === "Overdue"
-    )
-    return { purchases: overduePurchases, sales: overdueSales }
+    return { purchases: [], sales: [] }
   }
 
   return (

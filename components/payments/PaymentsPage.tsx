@@ -6,22 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
-  Plus, 
   Search, 
   DollarSign, 
   Clock, 
@@ -29,10 +17,8 @@ import {
   CheckCircle, 
   TrendingUp, 
   TrendingDown,
-  CreditCard,
-  Banknote,
-  Receipt,
-  Calendar,
+  Users,
+  Building2,
   Loader2
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
@@ -66,19 +52,8 @@ export default function PaymentsPage() {
   const { toast } = useToast()
   const [stats, setStats] = useState<PaymentStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isAddPaymentDialogOpen, setIsAddPaymentDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("overview")
-  const [formData, setFormData] = useState({
-    transactionId: "",
-    transactionType: "Sale",
-    amount: 0,
-    paymentDate: new Date().toISOString().split("T")[0],
-    paymentMethod: "Cash",
-    referenceNumber: "",
-    notes: "",
-    paidBy: ""
-  })
 
   useEffect(() => {
     fetchPaymentStats()
@@ -87,7 +62,7 @@ export default function PaymentsPage() {
   const fetchPaymentStats = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch("/api/payments/stats")
+      const response = await fetch("/api/payments?stats=true")
       const data = await response.json()
       setStats(data)
     } catch (error) {
@@ -99,54 +74,6 @@ export default function PaymentsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const handleAddPayment = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    try {
-      const response = await fetch("/api/payments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...formData,
-          recordedBy: user?.email || "Unknown"
-        }),
-      })
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Payment recorded successfully!"
-        })
-        setIsAddPaymentDialogOpen(false)
-        resetForm()
-        fetchPaymentStats() // Refresh stats
-      } else {
-        throw new Error("Failed to record payment")
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to record payment",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const resetForm = () => {
-    setFormData({
-      transactionId: "",
-      transactionType: "Sale",
-      amount: 0,
-      paymentDate: new Date().toISOString().split("T")[0],
-      paymentMethod: "Cash",
-      referenceNumber: "",
-      notes: "",
-      paidBy: ""
-    })
   }
 
   const formatCurrency = (amount: number) => {
@@ -163,17 +90,6 @@ export default function PaymentsPage() {
       case "Pending": return "bg-blue-100 text-blue-800"
       case "Overdue": return "bg-red-100 text-red-800"
       default: return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getPaymentMethodIcon = (method: string) => {
-    switch (method) {
-      case "Cash": return <Banknote className="h-4 w-4" />
-      case "Bank Transfer": return <CreditCard className="h-4 w-4" />
-      case "Check": return <Receipt className="h-4 w-4" />
-      case "Credit Card": return <CreditCard className="h-4 w-4" />
-      case "Digital Payment": return <CreditCard className="h-4 w-4" />
-      default: return <DollarSign className="h-4 w-4" />
     }
   }
 
@@ -196,6 +112,29 @@ export default function PaymentsPage() {
     )
   }
 
+  // Get unique suppliers and clients from overdue transactions
+  const suppliers = [...new Set(stats.overdueTransactions
+    .filter(t => t.type === "Purchase")
+    .map(t => t.supplier))]
+    .map(supplier => ({
+      name: supplier,
+      transactions: stats.overdueTransactions.filter(t => t.type === "Purchase" && t.supplier === supplier),
+      totalOutstanding: stats.overdueTransactions
+        .filter(t => t.type === "Purchase" && t.supplier === supplier)
+        .reduce((sum, t) => sum + t.outstanding, 0)
+    }))
+
+  const clients = [...new Set(stats.overdueTransactions
+    .filter(t => t.type === "Sale")
+    .map(t => t.client))]
+    .map(client => ({
+      name: client,
+      transactions: stats.overdueTransactions.filter(t => t.type === "Sale" && t.client === client),
+      totalOutstanding: stats.overdueTransactions
+        .filter(t => t.type === "Sale" && t.client === client)
+        .reduce((sum, t) => sum + t.outstanding, 0)
+    }))
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -203,140 +142,9 @@ export default function PaymentsPage() {
         <div>
           <h1 className="text-3xl font-bold">Payment Tracking</h1>
           <p className="text-muted-foreground">
-            Monitor outstanding payments and cash flow
+            Monitor outstanding payments by suppliers and clients
           </p>
         </div>
-        <Dialog open={isAddPaymentDialogOpen} onOpenChange={setIsAddPaymentDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Record Payment
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Record Payment</DialogTitle>
-              <DialogDescription>
-                Record a payment for a purchase or sale transaction
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddPayment} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="transactionType">Transaction Type</Label>
-                  <Select
-                    value={formData.transactionType}
-                    onValueChange={(value) => setFormData({ ...formData, transactionType: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Purchase">Purchase</SelectItem>
-                      <SelectItem value="Sale">Sale</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="paymentMethod">Payment Method</Label>
-                  <Select
-                    value={formData.paymentMethod}
-                    onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Cash">Cash</SelectItem>
-                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                      <SelectItem value="Check">Check</SelectItem>
-                      <SelectItem value="Credit Card">Credit Card</SelectItem>
-                      <SelectItem value="Digital Payment">Digital Payment</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="transactionId">Transaction ID</Label>
-                <Input
-                  id="transactionId"
-                  value={formData.transactionId}
-                  onChange={(e) => setFormData({ ...formData, transactionId: e.target.value })}
-                  placeholder="Enter transaction ID"
-                  required
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="paymentDate">Payment Date</Label>
-                  <Input
-                    id="paymentDate"
-                    type="date"
-                    value={formData.paymentDate}
-                    onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="paidBy">Paid By</Label>
-                <Input
-                  id="paidBy"
-                  value={formData.paidBy}
-                  onChange={(e) => setFormData({ ...formData, paidBy: e.target.value })}
-                  placeholder="Name of person/company who made payment"
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="referenceNumber">Reference Number</Label>
-                <Input
-                  id="referenceNumber"
-                  value={formData.referenceNumber}
-                  onChange={(e) => setFormData({ ...formData, referenceNumber: e.target.value })}
-                  placeholder="Check number, transaction ID, etc."
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Additional notes about the payment"
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsAddPaymentDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit">Record Payment</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Summary Cards */}
@@ -406,7 +214,8 @@ export default function PaymentsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="overdue">Overdue</TabsTrigger>
+          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
+          <TabsTrigger value="clients">Clients</TabsTrigger>
           <TabsTrigger value="recent">Recent Payments</TabsTrigger>
         </TabsList>
 
@@ -488,53 +297,94 @@ export default function PaymentsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="overdue" className="space-y-4">
+        <TabsContent value="suppliers" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-500" />
-                Overdue Transactions
+                <Building2 className="h-5 w-5 text-orange-500" />
+                Suppliers with Outstanding Payments
               </CardTitle>
               <CardDescription>
-                Transactions with payments past due date
+                Suppliers who have overdue or outstanding payments
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {stats.overdueTransactions.length === 0 ? (
+              {suppliers.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                  <p>No overdue transactions</p>
+                  <p>No suppliers with outstanding payments</p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Party</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Total Amount</TableHead>
-                      <TableHead>Paid Amount</TableHead>
-                      <TableHead>Outstanding</TableHead>
-                      <TableHead>Due Date</TableHead>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead>Outstanding Amount</TableHead>
+                      <TableHead>Transactions</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stats.overdueTransactions.map((transaction) => (
-                      <TableRow key={transaction.id}>
+                    {suppliers.map((supplier) => (
+                      <TableRow key={supplier.name}>
+                        <TableCell className="font-medium">{supplier.name}</TableCell>
+                        <TableCell className="font-medium text-red-600">
+                          {formatCurrency(supplier.totalOutstanding)}
+                        </TableCell>
+                        <TableCell>{supplier.transactions.length}</TableCell>
                         <TableCell>
-                          <Badge variant={transaction.type === "Purchase" ? "destructive" : "default"}>
-                            {transaction.type}
+                          <Badge variant="destructive" className="bg-red-100 text-red-800">
+                            Overdue
                           </Badge>
                         </TableCell>
-                        <TableCell>{transaction.type === "Purchase" ? transaction.supplier : transaction.client}</TableCell>
-                        <TableCell>{transaction.productName}</TableCell>
-                        <TableCell>{formatCurrency(transaction.totalAmount)}</TableCell>
-                        <TableCell>{formatCurrency(transaction.paidAmount)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="clients" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-500" />
+                Clients with Outstanding Payments
+              </CardTitle>
+              <CardDescription>
+                Clients who have overdue or outstanding payments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {clients.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                  <p>No clients with outstanding payments</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Outstanding Amount</TableHead>
+                      <TableHead>Transactions</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {clients.map((client) => (
+                      <TableRow key={client.name}>
+                        <TableCell className="font-medium">{client.name}</TableCell>
                         <TableCell className="font-medium text-red-600">
-                          {formatCurrency(transaction.outstanding)}
+                          {formatCurrency(client.totalOutstanding)}
                         </TableCell>
+                        <TableCell>{client.transactions.length}</TableCell>
                         <TableCell>
-                          {transaction.dueDate ? new Date(transaction.dueDate).toLocaleDateString() : "N/A"}
+                          <Badge variant="destructive" className="bg-red-100 text-red-800">
+                            Overdue
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -588,12 +438,7 @@ export default function PaymentsPage() {
                         <TableCell className="font-medium text-green-600">
                           {formatCurrency(payment.amount)}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getPaymentMethodIcon(payment.paymentMethod)}
-                            {payment.paymentMethod}
-                          </div>
-                        </TableCell>
+                        <TableCell>{payment.paymentMethod}</TableCell>
                         <TableCell>{payment.referenceNumber || "N/A"}</TableCell>
                       </TableRow>
                     ))}

@@ -8,16 +8,6 @@ const saleSchema = new mongoose.Schema({
   quantitySold: { type: Number, required: true },
   salePrice: { type: Number, required: true },
   saleDate: { type: Date, required: true },
-  // Payment tracking fields
-  totalAmount: { type: Number, required: true }, // quantitySold * salePrice
-  paidAmount: { type: Number, default: 0 },
-  paymentStatus: { 
-    type: String, 
-    enum: ["Pending", "Partial", "Paid", "Overdue"], 
-    default: "Pending" 
-  },
-  dueDate: { type: Date },
-  paymentTerms: { type: String, default: "Immediate" }, // Immediate, 30 days, 60 days, etc.
   isActive: { type: Boolean, default: true },
 }, { timestamps: true })
 
