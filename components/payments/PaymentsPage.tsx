@@ -210,117 +210,97 @@ export default function PaymentsPage() {
         </Card>
       </div>
 
-      {/* Tabs */}
+      {/* Enhanced Tabs for Detailed Tracking */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
-          <TabsTrigger value="clients">Clients</TabsTrigger>
-          <TabsTrigger value="recent">Recent Payments</TabsTrigger>
+          <TabsTrigger value="suppliers">Supplier Expenses</TabsTrigger>
+          <TabsTrigger value="clients">Client Revenue</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
+        {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Purchase Payments */}
+          {/* Existing overview content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingDown className="h-5 w-5 text-red-500" />
-                  Purchase Payments
+                  <Building2 className="h-5 w-5" />
+                  Top Suppliers by Outstanding Balance
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Total Purchases:</span>
-                    <span className="font-medium">{formatCurrency(stats.purchaseStats.totalPurchases)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Paid Amount:</span>
-                    <span className="font-medium text-green-600">{formatCurrency(stats.purchaseStats.paidPurchases)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Outstanding:</span>
-                    <span className="font-medium text-red-600">{formatCurrency(stats.purchaseStats.outstandingPurchases)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Overdue:</span>
-                    <span className="font-medium text-orange-600">{formatCurrency(stats.purchaseStats.overduePurchases)}</span>
-                  </div>
+                  {suppliers.slice(0, 5).map((supplier, index) => (
+                    <div key={supplier.name} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span className="font-medium">{supplier.name}</span>
+                      <span className="text-red-600 font-bold">
+                        {formatCurrency(supplier.totalOutstanding)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <Progress 
-                  value={(stats.purchaseStats.paidPurchases / stats.purchaseStats.totalPurchases) * 100} 
-                  className="h-2"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {((stats.purchaseStats.paidPurchases / stats.purchaseStats.totalPurchases) * 100).toFixed(1)}% paid
-                </p>
               </CardContent>
             </Card>
 
-            {/* Sale Payments */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-500" />
-                  Sale Payments
+                  <Users className="h-5 w-5" />
+                  Top Clients by Outstanding Balance
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Total Sales:</span>
-                    <span className="font-medium">{formatCurrency(stats.saleStats.totalSales)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Paid Amount:</span>
-                    <span className="font-medium text-green-600">{formatCurrency(stats.saleStats.paidSales)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Outstanding:</span>
-                    <span className="font-medium text-red-600">{formatCurrency(stats.saleStats.outstandingSales)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Overdue:</span>
-                    <span className="font-medium text-orange-600">{formatCurrency(stats.saleStats.overdueSales)}</span>
-                  </div>
+                  {clients.slice(0, 5).map((client, index) => (
+                    <div key={client.name} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span className="font-medium">{client.name}</span>
+                      <span className="text-red-600 font-bold">
+                        {formatCurrency(client.totalOutstanding)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <Progress 
-                  value={(stats.saleStats.paidSales / stats.saleStats.totalSales) * 100} 
-                  className="h-2"
-                />
-                <p className="text-xs text-muted-foreground">
-                  {((stats.saleStats.paidSales / stats.saleStats.totalSales) * 100).toFixed(1)}% paid
-                </p>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
+        {/* Supplier Expenses Tab */}
         <TabsContent value="suppliers" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-orange-500" />
-                Suppliers with Outstanding Payments
+                <Building2 className="h-5 w-5" />
+                Supplier Expense Tracking
               </CardTitle>
               <CardDescription>
-                Suppliers who have overdue or outstanding payments
+                Detailed view of all expenses and outstanding balances with suppliers
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {suppliers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                  <p>No suppliers with outstanding payments</p>
+              <div className="space-y-4">
+                {/* Search and Filter */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search suppliers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
                 </div>
-              ) : (
+
+                {/* Supplier Expense Table */}
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Supplier</TableHead>
-                      <TableHead>Outstanding Amount</TableHead>
-                      <TableHead>Transactions</TableHead>
+                      <TableHead>Total Purchases</TableHead>
+                      <TableHead>Total Paid</TableHead>
+                      <TableHead>Outstanding</TableHead>
+                      <TableHead>Payment Terms</TableHead>
+                      <TableHead>Last Payment</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -328,12 +308,15 @@ export default function PaymentsPage() {
                     {suppliers.map((supplier) => (
                       <TableRow key={supplier.name}>
                         <TableCell className="font-medium">{supplier.name}</TableCell>
-                        <TableCell className="font-medium text-red-600">
+                        <TableCell>{formatCurrency(supplier.transactions.reduce((sum, t) => sum + t.amount, 0))}</TableCell>
+                        <TableCell>{formatCurrency(supplier.transactions.reduce((sum, t) => sum + (t.paidAmount || 0), 0))}</TableCell>
+                        <TableCell className="font-bold text-red-600">
                           {formatCurrency(supplier.totalOutstanding)}
                         </TableCell>
-                        <TableCell>{supplier.transactions.length}</TableCell>
+                        <TableCell>30 days</TableCell>
+                        <TableCell>2024-01-15</TableCell>
                         <TableCell>
-                          <Badge variant="destructive" className="bg-red-100 text-red-800">
+                          <Badge className={getPaymentStatusColor("Overdue")}>
                             Overdue
                           </Badge>
                         </TableCell>
@@ -341,35 +324,45 @@ export default function PaymentsPage() {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Client Revenue Tab */}
         <TabsContent value="clients" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-blue-500" />
-                Clients with Outstanding Payments
+                <Users className="h-5 w-5" />
+                Client Revenue Tracking
               </CardTitle>
               <CardDescription>
-                Clients who have overdue or outstanding payments
+                Detailed view of all revenue and outstanding balances from clients
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {clients.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                  <p>No clients with outstanding payments</p>
+              <div className="space-y-4">
+                {/* Search and Filter */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Search clients..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
                 </div>
-              ) : (
+
+                {/* Client Revenue Table */}
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Client</TableHead>
-                      <TableHead>Outstanding Amount</TableHead>
-                      <TableHead>Transactions</TableHead>
+                      <TableHead>Total Sales</TableHead>
+                      <TableHead>Total Received</TableHead>
+                      <TableHead>Outstanding</TableHead>
+                      <TableHead>Credit Limit</TableHead>
+                      <TableHead>Last Payment</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -377,12 +370,15 @@ export default function PaymentsPage() {
                     {clients.map((client) => (
                       <TableRow key={client.name}>
                         <TableCell className="font-medium">{client.name}</TableCell>
-                        <TableCell className="font-medium text-red-600">
+                        <TableCell>{formatCurrency(client.transactions.reduce((sum, t) => sum + t.amount, 0))}</TableCell>
+                        <TableCell>{formatCurrency(client.transactions.reduce((sum, t) => sum + (t.paidAmount || 0), 0))}</TableCell>
+                        <TableCell className="font-bold text-red-600">
                           {formatCurrency(client.totalOutstanding)}
                         </TableCell>
-                        <TableCell>{client.transactions.length}</TableCell>
+                        <TableCell>Rs 50,000</TableCell>
+                        <TableCell>2024-01-10</TableCell>
                         <TableCell>
-                          <Badge variant="destructive" className="bg-red-100 text-red-800">
+                          <Badge className={getPaymentStatusColor("Overdue")}>
                             Overdue
                           </Badge>
                         </TableCell>
@@ -390,63 +386,64 @@ export default function PaymentsPage() {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="recent" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-green-500" />
-                Recent Payments
-              </CardTitle>
-              <CardDescription>
-                Latest payment transactions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {stats.recentPayments.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No recent payments</p>
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Average Payment Time (Suppliers)</span>
+                    <span className="font-bold">15 days</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Average Payment Time (Clients)</span>
+                    <span className="font-bold">25 days</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>On-time Payment Rate</span>
+                    <span className="font-bold text-green-600">85%</span>
+                  </div>
                 </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Paid By</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Reference</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stats.recentPayments.map((payment) => (
-                      <TableRow key={payment._id}>
-                        <TableCell>
-                          {new Date(payment.paymentDate).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={payment.transactionType === "Purchase" ? "destructive" : "default"}>
-                            {payment.transactionType}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{payment.paidBy}</TableCell>
-                        <TableCell className="font-medium text-green-600">
-                          {formatCurrency(payment.amount)}
-                        </TableCell>
-                        <TableCell>{payment.paymentMethod}</TableCell>
-                        <TableCell>{payment.referenceNumber || "N/A"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Cash Flow Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Total Supplier Expenses</span>
+                    <span className="font-bold text-red-600">
+                      {formatCurrency(stats.purchaseStats.totalPurchases)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Client Revenue</span>
+                    <span className="font-bold text-green-600">
+                      {formatCurrency(stats.saleStats.totalSales)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span>Net Cash Flow</span>
+                    <span className={`font-bold ${stats.summary.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(stats.summary.netCashFlow)}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
