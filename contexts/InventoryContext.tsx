@@ -81,20 +81,6 @@ export interface Supplier {
   isActive?: boolean
 }
 
-export interface Payment {
-  id: string
-  transactionId: string
-  transactionType: "Purchase" | "Sale"
-  amount: number
-  paymentDate: string
-  paymentMethod: "Cash" | "Bank Transfer" | "Check" | "Credit Card" | "Digital Payment"
-  referenceNumber?: string
-  notes?: string
-  paidBy: string
-  recordedBy: string
-  isActive?: boolean
-}
-
 interface InventoryContextType {
   products: Product[]
   purchases: Purchase[]
@@ -125,11 +111,6 @@ interface InventoryContextType {
   addSupplier: (supplier: Omit<Supplier, "id">) => void
   updateSupplier: (id: string, supplier: Partial<Supplier>) => void
   deleteSupplier: (id: string) => void
-  // Payment functions
-  recordPayment: (payment: Omit<Payment, "id">) => Promise<void>
-  getPaymentStats: () => Promise<any>
-  getOutstandingPayments: () => { purchases: Purchase[], sales: Sale[] }
-  getOverduePayments: () => { purchases: Purchase[], sales: Sale[] }
   getLowStockProducts: () => Product[]
   getTotalSales: () => number
   getTotalPurchases: () => number
@@ -817,23 +798,6 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Payment functions - removed as payment tracking is now handled separately
-  const recordPayment = async (payment: Omit<Payment, "id">) => {
-    console.log("Payment recording moved to separate payment system")
-  }
-
-  const getPaymentStats = async () => {
-    return { totalPayments: 0, outstandingAmount: 0, overdueAmount: 0 }
-  }
-
-  const getOutstandingPayments = () => {
-    return { purchases: [], sales: [] }
-  }
-
-  const getOverduePayments = () => {
-    return { purchases: [], sales: [] }
-  }
-
   return (
     <InventoryContext.Provider
       value={{
@@ -861,10 +825,6 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         addSupplier,
         updateSupplier,
         deleteSupplier,
-        recordPayment,
-        getPaymentStats,
-        getOutstandingPayments,
-        getOverduePayments,
         getLowStockProducts,
         getTotalSales,
         getTotalPurchases,

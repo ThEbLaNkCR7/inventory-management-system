@@ -115,29 +115,49 @@ const Client = mongoose.models.Client || mongoose.model("Client", clientSchema)
 export default async function handler(req, res) {
   await dbConnect()
   const { method } = req
+  const { id } = req.query
+  
+  if (!id) {
+    return res.status(400).json({ message: 'Client ID required' })
+  }
+  
+  console.log(`API Request: ${method} /api/clients/${id}`)
   
   switch (method) {
     case 'GET':
       try {
-        const clients = await Client.find({ isActive: { $ne: false } })
-        res.status(200).json({ clients })
+        const client = await Client.findById(id)
+        if (!client) return res.status(404).json({ message: 'Client not found' })
+        res.status(200).json(client)
       } catch (error) {
-        console.error('GET clients error:', error)
+        console.error("Get client error:", error)
         res.status(500).json({ message: 'Server error' })
       }
       break
-    case 'POST':
+    case 'PUT':
       try {
-        const client = new Client(req.body)
-        await client.save()
-        res.status(201).json(client)
+        console.log(`Updating client ${id} with data:`, req.body)
+        const client = await Client.findByIdAndUpdate(id, req.body, { new: true, runValidators: true })
+        if (!client) return res.status(404).json({ message: 'Client not found' })
+        console.log(`Client updated successfully:`, client)
+        res.status(200).json(client)
       } catch (error) {
-        console.error('POST client error:', error)
+        console.error("Update client error:", error)
+        res.status(500).json({ message: 'Server error' })
+      }
+      break
+    case 'DELETE':
+      try {
+        const client = await Client.findByIdAndUpdate(id, { isActive: false }, { new: true })
+        if (!client) return res.status(404).json({ message: 'Client not found' })
+        res.status(200).json({ message: 'Client deleted successfully' })
+      } catch (error) {
+        console.error("Delete client error:", error)
         res.status(500).json({ message: 'Server error' })
       }
       break
     default:
-      res.setHeader('Allow', ['GET', 'POST'])
+      res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
       res.status(405).end(`Method ${method} Not Allowed`)
   }
 } 

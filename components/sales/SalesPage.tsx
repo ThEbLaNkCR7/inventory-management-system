@@ -4,6 +4,7 @@ import React, { useState } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
+import { useNotifications } from "@/contexts/NotificationContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,9 +30,19 @@ import { Progress } from "@/components/ui/progress"
 
 export default function SalesPage() {
   const { user } = useAuth()
-  const { products, sales, clients, purchases, addSale, updateSale, deleteSale } = useInventory()
+  const { 
+    sales, 
+    addSale, 
+    updateSale, 
+    deleteSale,
+    products,
+    clients,
+    purchases,
+    refreshData
+  } = useInventory()
   const { submitChange } = useApproval()
   const { toast } = useToast()
+  const { addNotification } = useNotifications()
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)

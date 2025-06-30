@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
-import { Home, Package, ShoppingCart, TrendingUp, Users, Truck, BarChart3, X, CheckCircle, ChevronLeft, Menu, DollarSign } from "lucide-react"
+import { Home, Package, ShoppingCart, TrendingUp, Users, Truck, BarChart3, X, CheckCircle, ChevronLeft, Menu } from "lucide-react"
 import { useEffect, useState } from "react"
 
 interface SidebarProps {
@@ -44,7 +44,6 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, is
     { id: "suppliers", label: "Suppliers", icon: Truck, adminOnly: false },
     { id: "approvals", label: "Approvals", icon: CheckCircle, adminOnly: true },
     { id: "reports", label: "Reports", icon: BarChart3, adminOnly: true },
-    { id: "payments", label: "Payments", icon: DollarSign, adminOnly: false },
   ]
 
   const filteredMenuItems = menuItems.filter((item) => !item.adminOnly || user?.role === "admin")

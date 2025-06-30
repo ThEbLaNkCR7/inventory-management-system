@@ -426,13 +426,38 @@ export default function ProductsPage() {
   }
 
   const handleDeleteConfirm = async () => {
+    // Close dialog immediately when delete is confirmed
+    setIsDeleteDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
     try {
       if (user?.role === "admin") {
+        // Show live progress messages
+        toast({ 
+          title: "Processing...", 
+          description: "Validating deletion request...",
+          duration: 2000
+        })
+        
+        updateProgress("Validating deletion request...", 1, 4)
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        toast({ 
+          title: "Processing...", 
+          description: "Removing from database...",
+          duration: 2000
+        })
+        
         updateProgress("Removing from database...", 2, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
+        
+        toast({ 
+          title: "Processing...", 
+          description: "Updating inventory...",
+          duration: 2000
+        })
         
         updateProgress("Updating inventory...", 3, 4)
         await deleteProduct(deletingProduct.id)
@@ -441,7 +466,6 @@ export default function ProductsPage() {
         await new Promise(resolve => setTimeout(resolve, 300))
         
         toast({ title: "Success", description: "Product deleted successfully!", })
-        setIsDeleteDialogOpen(false)
         setDeletingProduct(null)
         
         // Add notification
@@ -454,16 +478,30 @@ export default function ProductsPage() {
           entityType: 'product'
         })
         
-        // Force refresh the data
-        await refreshData()
+        // Force refresh the data in the background
+        refreshData().catch(err => {
+          console.error("Failed to refresh data:", err)
+        })
       } else {
+        toast({ 
+          title: "Processing...", 
+          description: "Preparing deletion request...",
+          duration: 2000
+        })
+        
         updateProgress("Preparing deletion request...", 2, 3)
         await new Promise(resolve => setTimeout(resolve, 500))
         
+        toast({ 
+          title: "Processing...", 
+          description: "Submitting for approval...",
+          duration: 2000
+        })
+        
         updateProgress("Submitting for approval...", 3, 3)
         submitChange({ type: "product", action: "delete", entityId: deletingProduct.id, originalData: deletingProduct, proposedData: { deleted: true }, requestedBy: user?.email || "", reason: `Request to delete product: ${deletingProduct.name}` })
+        
         toast({ title: "Submitted", description: "Product deletion submitted for approval!" })
-        setIsDeleteDialogOpen(false)
         setDeletingProduct(null)
         
         // Add notification for deletion request

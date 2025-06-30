@@ -34,6 +34,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
+import { useNotifications } from "@/contexts/NotificationContext"
 
 export default function SuppliersPage() {
   const { user } = useAuth()
@@ -45,7 +46,8 @@ export default function SuppliersPage() {
     getSupplierTotalSpent,
     getSupplierOrderCount,
     getSupplierLastOrder,
-    purchases
+    purchases,
+    refreshData
   } = useInventory()
   const { submitChange } = useApproval()
   const [searchTerm, setSearchTerm] = useState("")
@@ -77,6 +79,7 @@ export default function SuppliersPage() {
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState("")
   const [totalSteps, setTotalSteps] = useState(0)
+  const { addNotification } = useNotifications()
 
   const filteredSuppliers = suppliers.filter(
     (supplier) =>
@@ -165,6 +168,13 @@ export default function SuppliersPage() {
         toast({ title: "Success", description: "Supplier added successfully!", })
         setShowSuccessAlert(true)
         setAlertMessage("Supplier added successfully!")
+        addNotification({
+          type: 'success',
+          title: 'Supplier Added',
+          message: 'Supplier has been successfully added to the system.',
+          action: 'supplier_added',
+          entityType: 'supplier'
+        })
       } else {
         toast({ 
           title: "Processing...", 
@@ -214,6 +224,13 @@ export default function SuppliersPage() {
     setShowApprovalDialog(false)
     setApprovalReason("")
     showAlert("Supplier request submitted for approval!")
+    addNotification({
+      type: 'info',
+      title: 'Approval Request',
+      message: 'Supplier request has been submitted for admin approval.',
+      action: 'approval_requested',
+      entityType: 'supplier'
+    })
   }
 
   const handleEdit = (supplier: any) => {
@@ -282,6 +299,19 @@ export default function SuppliersPage() {
           toast({ title: "Success", description: "Supplier updated successfully!", })
           setShowSuccessAlert(true)
           setAlertMessage("Supplier updated successfully!")
+          addNotification({
+            type: 'success',
+            title: 'Supplier Updated',
+            message: `Supplier "${formData.name}" has been successfully updated.`,
+            action: 'supplier_updated',
+            entityId: editingSupplier.id,
+            entityType: 'supplier'
+          })
+          
+          // Force refresh the data in the background
+          refreshData().catch(err => {
+            console.error("Failed to refresh data:", err)
+          })
         } else {
           toast({ 
             title: "Processing...", 
@@ -318,6 +348,15 @@ export default function SuppliersPage() {
             reason: approvalReason, 
           })
           toast({ title: "Submitted", description: "Supplier changes submitted for admin approval." })
+          
+          addNotification({
+            type: 'info',
+            title: 'Update Approval Request',
+            message: `Update for supplier "${formData.name}" has been submitted for admin approval.`,
+            action: 'update_approval_requested',
+            entityId: editingSupplier.id,
+            entityType: 'supplier'
+          })
         }
         resetForm()
         setEditingSupplier(null)
@@ -369,6 +408,19 @@ export default function SuppliersPage() {
           await new Promise(resolve => setTimeout(resolve, 300))
           
           toast({ title: "Success", description: "Supplier deleted successfully!", })
+          addNotification({
+            type: 'warning',
+            title: 'Supplier Deleted',
+            message: `Supplier "${deletingSupplier.name}" has been permanently deleted.`,
+            action: 'supplier_deleted',
+            entityId: deletingSupplier.id,
+            entityType: 'supplier'
+          })
+          
+          // Force refresh the data in the background
+          refreshData().catch(err => {
+            console.error("Failed to refresh data:", err)
+          })
         } else {
           updateProgress("Preparing deletion request...", 2, 3)
           await new Promise(resolve => setTimeout(resolve, 500))
@@ -376,6 +428,15 @@ export default function SuppliersPage() {
           updateProgress("Submitting for approval...", 3, 3)
           submitChange({ type: "supplier", action: "delete", entityId: deletingSupplier.id, originalData: { name: deletingSupplier.name, email: deletingSupplier.email, phone: deletingSupplier.phone, company: deletingSupplier.company, address: deletingSupplier.address, status: deletingSupplier.status, }, proposedData: {}, requestedBy: user?.email || "", reason: deleteReason, })
           toast({ title: "Submitted", description: "Supplier deletion submitted for admin approval." })
+          
+          addNotification({
+            type: 'info',
+            title: 'Delete Approval Request',
+            message: `Delete for supplier "${deletingSupplier.name}" has been submitted for admin approval.`,
+            action: 'delete_approval_requested',
+            entityId: deletingSupplier.id,
+            entityType: 'supplier'
+          })
         }
         setIsDeleteDialogOpen(false)
         setDeletingSupplier(null)

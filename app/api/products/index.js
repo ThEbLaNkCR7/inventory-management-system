@@ -60,9 +60,9 @@ export default async function handler(req, res) {
   
   // If we have a product ID, handle individual product operations
   if (productId) {
-  switch (method) {
-    case 'GET':
-      try {
+    switch (method) {
+      case 'GET':
+        try {
           const product = await Product.findById(productId)
           if (!product) {
             return res.status(404).json({ message: 'Product not found' })

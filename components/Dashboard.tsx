@@ -16,7 +16,6 @@ import BatchesPage from "@/components/batches/BatchesPage"
 import StockViewPage from "@/components/stock/StockViewPage"
 import ApprovalsPage from "@/components/approvals/ApprovalsPage"
 import VisualReports from "@/components/reports/VisualReports"
-import PaymentsPage from "@/components/payments/PaymentsPage"
 import { ChevronRight, Menu } from "lucide-react"
 
 export default function Dashboard() {
@@ -101,8 +100,6 @@ export default function Dashboard() {
         return <ReportsPage />
       case "visual-reports":
         return <VisualReports />
-      case "payments":
-        return <PaymentsPage />
       default:
         return <DashboardHome />
     }
