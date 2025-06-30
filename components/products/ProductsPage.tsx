@@ -132,22 +132,45 @@ export default function ProductsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsAddDialogOpen(false)
+    
+    // Use newCategoryName if adding new category
+    const submitData = {
+      ...formData,
+      category: isAddingNewCategory ? newCategoryName : formData.category
+    }
+    
     setIsLoading(true)
     setProgress(0)
     
     try {
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Validating product data...",
+        duration: 2000
+      })
+      
       updateProgress("Validating product data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
-      // Use newCategoryName if adding new category
-      const submitData = {
-        ...formData,
-        category: isAddingNewCategory ? newCategoryName : formData.category
-      }
-      
       if (user?.role === "admin") {
+        toast({ 
+          title: "Processing...", 
+          description: "Adding product to database...",
+          duration: 2000
+        })
+        
         updateProgress("Adding product to database...", 2, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
+        
+        toast({ 
+          title: "Processing...", 
+          description: "Updating inventory...",
+          duration: 2000
+        })
         
         updateProgress("Updating inventory...", 3, 4)
         await addProduct(submitData)
@@ -155,9 +178,9 @@ export default function ProductsPage() {
         updateProgress("Operation completed!", 4, 4)
         await new Promise(resolve => setTimeout(resolve, 300))
         
-        toast({ title: "Success", description: "Product added successfully!", })
         resetForm()
-        setIsAddDialogOpen(false) // Close form immediately
+        
+        toast({ title: "Success", description: "Product added successfully!", })
         setShowSuccessAlert(true)
         setAlertMessage("Product added successfully!")
         
@@ -171,11 +194,25 @@ export default function ProductsPage() {
           entityType: 'product'
         })
         
-        // Force refresh the data
-        await refreshData()
+        // Force refresh the data in the background
+        refreshData().catch(err => {
+          console.error("Failed to refresh data:", err)
+        })
       } else {
+        toast({ 
+          title: "Processing...", 
+          description: "Preparing approval request...",
+          duration: 2000
+        })
+        
         updateProgress("Preparing approval request...", 2, 3)
         await new Promise(resolve => setTimeout(resolve, 500))
+        
+        toast({ 
+          title: "Processing...", 
+          description: "Submitting for approval...",
+          duration: 2000
+        })
         
         updateProgress("Submitting for approval...", 3, 3)
         setPendingAction({ type: "create", data: submitData })
@@ -212,11 +249,22 @@ export default function ProductsPage() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsEditDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
     try {
       if (editingProduct) {
+        // Show live progress messages
+        toast({ 
+          title: "Processing...", 
+          description: "Validating changes...",
+          duration: 2000
+        })
+        
         updateProgress("Validating changes...", 1, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
@@ -227,8 +275,20 @@ export default function ProductsPage() {
         }
         
         if (user?.role === "admin") {
+          toast({ 
+            title: "Processing...", 
+            description: "Updating product in database...",
+            duration: 2000
+          })
+          
           updateProgress("Updating product in database...", 2, 4)
           await new Promise(resolve => setTimeout(resolve, 500))
+          
+          toast({ 
+            title: "Processing...", 
+            description: "Refreshing inventory...",
+            duration: 2000
+          })
           
           updateProgress("Refreshing inventory...", 3, 4)
           await updateProduct(editingProduct.id, submitData)
@@ -236,10 +296,10 @@ export default function ProductsPage() {
           updateProgress("Operation completed!", 4, 4)
           await new Promise(resolve => setTimeout(resolve, 300))
           
-          toast({ title: "Success", description: "Product updated successfully!", })
           resetForm()
-          setIsEditDialogOpen(false) // Close form immediately
           setEditingProduct(null)
+          
+          toast({ title: "Success", description: "Product updated successfully!", })
           setShowSuccessAlert(true)
           setAlertMessage("Product updated successfully!")
           
@@ -253,11 +313,25 @@ export default function ProductsPage() {
             entityType: 'product'
           })
           
-          // Force refresh the data
-          await refreshData()
+          // Force refresh the data in the background
+          refreshData().catch(err => {
+            console.error("Failed to refresh data:", err)
+          })
         } else {
+          toast({ 
+            title: "Processing...", 
+            description: "Preparing approval request...",
+            duration: 2000
+          })
+          
           updateProgress("Preparing approval request...", 2, 3)
           await new Promise(resolve => setTimeout(resolve, 500))
+          
+          toast({ 
+            title: "Processing...", 
+            description: "Submitting for approval...",
+            duration: 2000
+          })
           
           updateProgress("Submitting for approval...", 3, 3)
           setPendingAction({ type: "update", data: submitData, productId: editingProduct.id })

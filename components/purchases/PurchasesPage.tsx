@@ -120,21 +120,50 @@ export default function PurchasesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsAddDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
     try {
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Validating purchase data...",
+        duration: 2000
+      })
+      
       updateProgress("Validating purchase data...", 1, 5)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       const product = products.find((p) => p.id === formData.productId)
       if (product) {
+        toast({ 
+          title: "Processing...", 
+          description: "Checking product availability...",
+          duration: 2000
+        })
+        
         updateProgress("Checking product availability...", 2, 5)
         await new Promise(resolve => setTimeout(resolve, 500))
         
         if (user?.role === "admin") {
+          toast({ 
+            title: "Processing...", 
+            description: "Recording purchase transaction...",
+            duration: 2000
+          })
+          
           updateProgress("Recording purchase transaction...", 3, 5)
           await new Promise(resolve => setTimeout(resolve, 500))
+          
+          toast({ 
+            title: "Processing...", 
+            description: "Updating inventory levels...",
+            duration: 2000
+          })
           
           updateProgress("Updating inventory levels...", 4, 5)
           const supplierName = formData.supplier === "custom" ? formData.customSupplier : formData.supplier
@@ -144,10 +173,24 @@ export default function PurchasesPage() {
           updateProgress("Operation completed!", 5, 5)
           await new Promise(resolve => setTimeout(resolve, 300))
           
+          resetForm()
+          
           toast({ title: "Success", description: "Purchase recorded successfully!", })
         } else {
+          toast({ 
+            title: "Processing...", 
+            description: "Preparing approval request...",
+            duration: 2000
+          })
+          
           updateProgress("Preparing approval request...", 3, 4)
           await new Promise(resolve => setTimeout(resolve, 500))
+          
+          toast({ 
+            title: "Processing...", 
+            description: "Submitting for approval...",
+            duration: 2000
+          })
           
           updateProgress("Submitting for approval...", 4, 4)
           const supplierName = formData.supplier === "custom" ? formData.customSupplier : formData.supplier
@@ -155,10 +198,6 @@ export default function PurchasesPage() {
           submitChange({ type: "purchase", action: "create", proposedData: { ...purchaseData, productName: product.name, supplier: supplierName }, requestedBy: user?.email || "", reason: editReason || "New purchase record", })
           toast({ title: "Submitted", description: "Purchase submitted for admin approval." })
         }
-        
-        // Close dialog immediately after operation starts
-        setIsAddDialogOpen(false)
-        resetForm()
       }
     } catch (err) {
       toast({ title: "Error", description: "Failed to record purchase.", variant: "destructive" })
@@ -186,21 +225,50 @@ export default function PurchasesPage() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsEditDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
     try {
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Validating changes...",
+        duration: 2000
+      })
+      
       updateProgress("Validating changes...", 1, 5)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       const product = products.find((p) => p.id === formData.productId)
       if (product && editingPurchase && (user?.role === "admin" || editReason.trim())) {
+        toast({ 
+          title: "Processing...", 
+          description: "Checking product availability...",
+          duration: 2000
+        })
+        
         updateProgress("Checking product availability...", 2, 5)
         await new Promise(resolve => setTimeout(resolve, 500))
         
         if (user?.role === "admin") {
+          toast({ 
+            title: "Processing...", 
+            description: "Updating purchase record...",
+            duration: 2000
+          })
+          
           updateProgress("Updating purchase record...", 3, 5)
           await new Promise(resolve => setTimeout(resolve, 500))
+          
+          toast({ 
+            title: "Processing...", 
+            description: "Adjusting inventory...",
+            duration: 2000
+          })
           
           updateProgress("Adjusting inventory...", 4, 5)
           const supplierName = formData.supplier === "custom" ? formData.customSupplier : formData.supplier
@@ -210,10 +278,25 @@ export default function PurchasesPage() {
           updateProgress("Operation completed!", 5, 5)
           await new Promise(resolve => setTimeout(resolve, 300))
           
+          setEditingPurchase(null)
+          resetForm()
+          
           toast({ title: "Success", description: "Purchase updated successfully!", })
         } else {
+          toast({ 
+            title: "Processing...", 
+            description: "Preparing approval request...",
+            duration: 2000
+          })
+          
           updateProgress("Preparing approval request...", 3, 4)
           await new Promise(resolve => setTimeout(resolve, 500))
+          
+          toast({ 
+            title: "Processing...", 
+            description: "Submitting for approval...",
+            duration: 2000
+          })
           
           updateProgress("Submitting for approval...", 4, 4)
           const supplierName = formData.supplier === "custom" ? formData.customSupplier : formData.supplier
@@ -222,8 +305,6 @@ export default function PurchasesPage() {
           toast({ title: "Submitted", description: "Purchase changes submitted for admin approval." })
         }
         
-        // Close dialog immediately after operation starts
-        setIsEditDialogOpen(false)
         setEditingPurchase(null)
         resetForm()
       } else if (user?.role !== "admin" && !editReason.trim()) {

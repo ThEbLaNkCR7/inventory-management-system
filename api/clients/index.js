@@ -115,12 +115,73 @@ const Client = mongoose.models.Client || mongoose.model("Client", clientSchema)
 export default async function handler(req, res) {
   await dbConnect()
   const { method } = req
+  
+  // Improved ID detection logic
+  let clientId = req.query.id
+  
+  // If no ID in query, check if the URL path contains an ID
+  if (!clientId && req.url) {
+    const urlParts = req.url.split('/')
+    const lastPart = urlParts[urlParts.length - 1]
+    
+    // Check if the last part looks like a MongoDB ObjectId (24 hex characters)
+    if (lastPart && lastPart.length === 24 && /^[0-9a-fA-F]{24}$/.test(lastPart)) {
+      clientId = lastPart
+    }
+  }
+  
+  console.log(`API Request: ${method} ${req.url}, Client ID: ${clientId}`)
+  
+  // If we have a client ID, handle individual client operations
+  if (clientId) {
+    switch (method) {
+      case 'GET':
+        try {
+          const client = await Client.findById(clientId)
+          if (!client) return res.status(404).json({ message: 'Client not found' })
+          res.status(200).json(client)
+        } catch (error) {
+          console.error("Get client error:", error)
+          res.status(500).json({ message: 'Server error' })
+        }
+        break
+      case 'PUT':
+        try {
+          console.log(`Updating client ${clientId} with data:`, req.body)
+          const client = await Client.findByIdAndUpdate(clientId, req.body, { new: true, runValidators: true })
+          if (!client) return res.status(404).json({ message: 'Client not found' })
+          console.log(`Client updated successfully:`, client)
+          res.status(200).json(client)
+        } catch (error) {
+          console.error("Update client error:", error)
+          res.status(500).json({ message: 'Server error' })
+        }
+        break
+      case 'DELETE':
+        try {
+          const client = await Client.findByIdAndUpdate(clientId, { isActive: false }, { new: true })
+          if (!client) return res.status(404).json({ message: 'Client not found' })
+          res.status(200).json({ message: 'Client deleted successfully' })
+        } catch (error) {
+          console.error("Delete client error:", error)
+          res.status(500).json({ message: 'Server error' })
+        }
+        break
+      default:
+        res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
+        res.status(405).end(`Method ${method} Not Allowed`)
+    }
+    return
+  }
+  
+  // Handle collection operations (no specific ID)
   switch (method) {
     case 'GET':
       try {
-        const clients = await Client.find({ isActive: true })
+        const clients = await Client.find({ isActive: { $ne: false } })
         res.status(200).json({ clients })
       } catch (error) {
+        console.error('GET clients error:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break
@@ -130,6 +191,7 @@ export default async function handler(req, res) {
         await client.save()
         res.status(201).json(client)
       } catch (error) {
+        console.error('POST client error:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break

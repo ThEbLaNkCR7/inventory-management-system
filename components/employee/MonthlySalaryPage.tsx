@@ -90,10 +90,21 @@ export default function MonthlySalaryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsAddDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
     try {
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Validating salary data...",
+        duration: 2000
+      })
+      
       updateProgress("Validating salary data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
@@ -123,28 +134,46 @@ export default function MonthlySalaryPage() {
         notes: formData.notes
       }
 
+      toast({ 
+        title: "Processing...", 
+        description: "Processing salary data...",
+        duration: 2000
+      })
+      
       updateProgress("Processing salary data...", 2, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
 
       if (editingSalary) {
+        toast({ 
+          title: "Processing...", 
+          description: "Updating salary record in database...",
+          duration: 2000
+        })
+        
         updateProgress("Updating salary record in database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        updateSalary(editingSalary.id, salaryData)
+        await updateSalary(editingSalary.id, salaryData)
         setEditingSalary(null)
       } else {
+        toast({ 
+          title: "Processing...", 
+          description: "Adding salary record to database...",
+          duration: 2000
+        })
+        
         updateProgress("Adding salary record to database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        addSalary(salaryData)
+        await addSalary(salaryData)
       }
       
       updateProgress("Operation completed!", 4, 4)
       await new Promise(resolve => setTimeout(resolve, 300))
       
-      toast({ title: "Success", description: editingSalary ? "Salary record updated successfully!" : "Salary record added successfully!" })
       resetForm()
-      setIsAddDialogOpen(false)
+      
+      toast({ title: "Success", description: editingSalary ? "Salary record updated successfully!" : "Salary record added successfully!" })
       setShowSuccessAlert(true)
       setAlertMessage(editingSalary ? "Salary record updated successfully!" : "Salary record added successfully!")
     } catch (err) {

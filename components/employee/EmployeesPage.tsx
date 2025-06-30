@@ -65,6 +65,10 @@ export default function EmployeesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsAddDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
@@ -73,6 +77,13 @@ export default function EmployeesPage() {
         toast({ title: "Error", description: "Employee name is required", variant: "destructive" })
         return
       }
+      
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Validating employee data...",
+        duration: 2000
+      })
       
       updateProgress("Validating employee data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -92,28 +103,46 @@ export default function EmployeesPage() {
         emergencyPhone: formData.emergencyPhone || "Not provided",
       }
 
+      toast({ 
+        title: "Processing...", 
+        description: "Processing employee data...",
+        duration: 2000
+      })
+      
       updateProgress("Processing employee data...", 2, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
 
       if (editingEmployee) {
+        toast({ 
+          title: "Processing...", 
+          description: "Updating employee in database...",
+          duration: 2000
+        })
+        
         updateProgress("Updating employee in database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        updateEmployee(editingEmployee.id, employeeData)
+        await updateEmployee(editingEmployee.id, employeeData)
         setEditingEmployee(null)
       } else {
+        toast({ 
+          title: "Processing...", 
+          description: "Adding employee to database...",
+          duration: 2000
+        })
+        
         updateProgress("Adding employee to database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        addEmployee(employeeData)
+        await addEmployee(employeeData)
       }
       
       updateProgress("Operation completed!", 4, 4)
       await new Promise(resolve => setTimeout(resolve, 300))
       
-      toast({ title: "Success", description: editingEmployee ? "Employee updated successfully!" : "Employee added successfully!" })
       resetForm()
-      setIsAddDialogOpen(false)
+      
+      toast({ title: "Success", description: editingEmployee ? "Employee updated successfully!" : "Employee added successfully!" })
       setShowSuccessAlert(true)
       setAlertMessage(editingEmployee ? "Employee updated successfully!" : "Employee added successfully!")
     } catch (err) {

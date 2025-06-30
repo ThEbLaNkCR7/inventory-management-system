@@ -100,6 +100,10 @@ export default function BatchesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsAddDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
@@ -109,6 +113,13 @@ export default function BatchesPage() {
         return
       }
 
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Validating batch data...",
+        duration: 2000
+      })
+      
       updateProgress("Validating batch data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
@@ -122,28 +133,46 @@ export default function BatchesPage() {
         totalValue,
       }
 
+      toast({ 
+        title: "Processing...", 
+        description: "Processing batch data...",
+        duration: 2000
+      })
+      
       updateProgress("Processing batch data...", 2, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
 
       if (editingBatch) {
+        toast({ 
+          title: "Processing...", 
+          description: "Updating batch in database...",
+          duration: 2000
+        })
+        
         updateProgress("Updating batch in database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        addBatch(batchData)
+        await addBatch(batchData)
         setEditingBatch(null)
       } else {
+        toast({ 
+          title: "Processing...", 
+          description: "Adding batch to database...",
+          duration: 2000
+        })
+        
         updateProgress("Adding batch to database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        addBatch(batchData)
+        await addBatch(batchData)
       }
       
       updateProgress("Operation completed!", 4, 4)
       await new Promise(resolve => setTimeout(resolve, 300))
       
-      toast({ title: "Success", description: editingBatch ? "Batch updated successfully!" : "Batch added successfully!" })
       resetForm()
-      setIsAddDialogOpen(false)
+      
+      toast({ title: "Success", description: editingBatch ? "Batch updated successfully!" : "Batch added successfully!" })
       setShowSuccessAlert(true)
       setAlertMessage(editingBatch ? "Batch updated successfully!" : "Batch added successfully!")
     } catch (err) {

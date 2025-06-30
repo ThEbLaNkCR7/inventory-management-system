@@ -131,16 +131,39 @@ export default function ClientsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsAddDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
     try {
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Validating client data...",
+        duration: 2000
+      })
+      
       updateProgress("Validating client data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       if (user?.role === "admin") {
+        toast({ 
+          title: "Processing...", 
+          description: "Adding client to database...",
+          duration: 2000
+        })
+        
         updateProgress("Adding client to database...", 2, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
+        
+        toast({ 
+          title: "Processing...", 
+          description: "Setting up client profile...",
+          duration: 2000
+        })
         
         updateProgress("Setting up client profile...", 3, 4)
         const companyName = formData.company === "custom" ? formData.customCompany : formData.company
@@ -167,14 +190,26 @@ export default function ClientsPage() {
         updateProgress("Operation completed!", 4, 4)
         await new Promise(resolve => setTimeout(resolve, 300))
         
-        toast({ title: "Success", description: "Client added successfully!", })
         resetForm()
-        setIsAddDialogOpen(false)
+        
+        toast({ title: "Success", description: "Client added successfully!", })
         setShowSuccessAlert(true)
         setAlertMessage("Client added successfully!")
       } else {
+        toast({ 
+          title: "Processing...", 
+          description: "Preparing approval request...",
+          duration: 2000
+        })
+        
         updateProgress("Preparing approval request...", 2, 3)
         await new Promise(resolve => setTimeout(resolve, 500))
+        
+        toast({ 
+          title: "Processing...", 
+          description: "Submitting for approval...",
+          duration: 2000
+        })
         
         updateProgress("Submitting for approval...", 3, 3)
         setShowApprovalDialog(true)
@@ -236,9 +271,20 @@ export default function ClientsPage() {
     setIsEditDialogOpen(true)
   }
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsEditDialogOpen(false)
+    
     if (editingClient) {
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Updating client information...",
+        duration: 2000
+      })
+      
       const companyName = formData.company === "custom" ? formData.customCompany : formData.company
       const { customCompany, ...clientData } = formData
       const updateData = {
@@ -253,10 +299,12 @@ export default function ClientsPage() {
         },
         isActive: formData.status === "Active"
       }
-      updateClient(editingClient.id, updateData)
+      
+      await updateClient(editingClient.id, updateData)
       resetForm()
-      setIsEditDialogOpen(false)
       setEditingClient(null)
+      
+      toast({ title: "Success", description: "Client updated successfully!", })
       setShowSuccessAlert(true)
       setAlertMessage("Client updated successfully!")
     }

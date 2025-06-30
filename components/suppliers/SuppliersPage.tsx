@@ -112,16 +112,39 @@ export default function SuppliersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsAddDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
     try {
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Validating supplier data...",
+        duration: 2000
+      })
+      
       updateProgress("Validating supplier data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       if (user?.role === "admin") {
+        toast({ 
+          title: "Processing...", 
+          description: "Adding supplier to database...",
+          duration: 2000
+        })
+        
         updateProgress("Adding supplier to database...", 2, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
+        
+        toast({ 
+          title: "Processing...", 
+          description: "Setting up supplier profile...",
+          duration: 2000
+        })
         
         updateProgress("Setting up supplier profile...", 3, 4)
         const companyName = formData.company === "custom" ? formData.customCompany : formData.company
@@ -137,14 +160,26 @@ export default function SuppliersPage() {
         updateProgress("Operation completed!", 4, 4)
         await new Promise(resolve => setTimeout(resolve, 300))
         
-        toast({ title: "Success", description: "Supplier added successfully!", })
         resetForm()
-        setIsAddDialogOpen(false)
+        
+        toast({ title: "Success", description: "Supplier added successfully!", })
         setShowSuccessAlert(true)
         setAlertMessage("Supplier added successfully!")
       } else {
+        toast({ 
+          title: "Processing...", 
+          description: "Preparing approval request...",
+          duration: 2000
+        })
+        
         updateProgress("Preparing approval request...", 2, 3)
         await new Promise(resolve => setTimeout(resolve, 500))
+        
+        toast({ 
+          title: "Processing...", 
+          description: "Submitting for approval...",
+          duration: 2000
+        })
         
         updateProgress("Submitting for approval...", 3, 3)
         setShowApprovalDialog(true)
@@ -197,17 +232,40 @@ export default function SuppliersPage() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Close form immediately when submit is clicked
+    setIsEditDialogOpen(false)
+    
     setIsLoading(true)
     setProgress(0)
     
     try {
+      // Show live progress messages
+      toast({ 
+        title: "Processing...", 
+        description: "Validating changes...",
+        duration: 2000
+      })
+      
       updateProgress("Validating changes...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       if (editingSupplier && (user?.role === "admin" || approvalReason.trim())) {
         if (user?.role === "admin") {
+          toast({ 
+            title: "Processing...", 
+            description: "Updating supplier in database...",
+            duration: 2000
+          })
+          
           updateProgress("Updating supplier in database...", 2, 4)
           await new Promise(resolve => setTimeout(resolve, 500))
+          
+          toast({ 
+            title: "Processing...", 
+            description: "Refreshing supplier data...",
+            duration: 2000
+          })
           
           updateProgress("Refreshing supplier data...", 3, 4)
           const companyName = formData.company === "custom" ? formData.customCompany : formData.company
@@ -217,16 +275,28 @@ export default function SuppliersPage() {
           updateProgress("Operation completed!", 4, 4)
           await new Promise(resolve => setTimeout(resolve, 300))
           
-          toast({ title: "Success", description: "Supplier updated successfully!", })
           resetForm()
-          setIsEditDialogOpen(false)
           setEditingSupplier(null)
           setApprovalReason("")
+          
+          toast({ title: "Success", description: "Supplier updated successfully!", })
           setShowSuccessAlert(true)
           setAlertMessage("Supplier updated successfully!")
         } else {
+          toast({ 
+            title: "Processing...", 
+            description: "Preparing approval request...",
+            duration: 2000
+          })
+          
           updateProgress("Preparing approval request...", 2, 3)
           await new Promise(resolve => setTimeout(resolve, 500))
+          
+          toast({ 
+            title: "Processing...", 
+            description: "Submitting for approval...",
+            duration: 2000
+          })
           
           updateProgress("Submitting for approval...", 3, 3)
           const companyName = formData.company === "custom" ? formData.customCompany : formData.company
@@ -250,7 +320,6 @@ export default function SuppliersPage() {
           toast({ title: "Submitted", description: "Supplier changes submitted for admin approval." })
         }
         resetForm()
-        setIsEditDialogOpen(false)
         setEditingSupplier(null)
         setApprovalReason("")
       } else if (user?.role !== "admin" && !approvalReason.trim()) {
