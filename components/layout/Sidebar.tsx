@@ -87,7 +87,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, is
               : 'opacity-0 scale-95 transform translate-x-16'
           }`}>
             <h1 className="text-responsive-xl font-bold text-white truncate">
-              Sheel Inventory
+              Sheel Waterproofing
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">

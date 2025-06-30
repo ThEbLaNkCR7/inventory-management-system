@@ -125,7 +125,7 @@ export default function VisualReports() {
     .slice(0, 5)
 
   return (
-    <div className="space-y-6 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+    <div className="space-y-6 p-6 min-h-screen transition-colors duration-300">
       <div className="space-y-2">
         <h1 className="section-title">
           Visual Reports

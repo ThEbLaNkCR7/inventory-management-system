@@ -308,7 +308,7 @@ export default function SalesPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+    <div className="space-y-6 p-6 min-h-screen transition-colors duration-300">
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
@@ -484,17 +484,6 @@ export default function SalesPage() {
                     value={formData.saleDate}
                     onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
                     required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reason">Reason for Changes {user?.role !== "admin" && "*"}</Label>
-                  <Textarea
-                    id="reason"
-                    value={editReason}
-                    onChange={(e) => setEditReason(e.target.value)}
-                    placeholder="Explain why you're making these changes..."
-                    rows={3}
-                    required={user?.role !== "admin"}
                   />
                 </div>
                 <div className="flex justify-end space-x-2">
@@ -1073,17 +1062,6 @@ export default function SalesPage() {
                 value={formData.saleDate}
                 onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
                 required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-reason">Reason for Changes {user?.role !== "admin" && "*"}</Label>
-              <Textarea
-                id="edit-reason"
-                value={editReason}
-                onChange={(e) => setEditReason(e.target.value)}
-                placeholder="Explain why you're making these changes..."
-                rows={3}
-                required={user?.role !== "admin"}
               />
             </div>
             <div className="flex justify-end space-x-2">

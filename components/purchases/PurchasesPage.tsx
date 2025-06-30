@@ -302,7 +302,7 @@ export default function PurchasesPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+    <div className="space-y-6 p-6 min-h-screen transition-colors duration-300">
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
@@ -480,17 +480,6 @@ export default function PurchasesPage() {
                     value={formData.purchaseDate}
                     onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
                     required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reason">Reason for Changes {user?.role !== "admin" && "*"}</Label>
-                  <Textarea
-                    id="reason"
-                    value={editReason}
-                    onChange={(e) => setEditReason(e.target.value)}
-                    placeholder="Explain why you're making these changes..."
-                    rows={3}
-                    required={user?.role !== "admin"}
                   />
                 </div>
                 <div className="flex justify-end space-x-2">
@@ -1075,17 +1064,6 @@ export default function PurchasesPage() {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-reason">Reason for Changes {user?.role !== "admin" && "*"}</Label>
-              <Textarea
-                id="edit-reason"
-                value={editReason}
-                onChange={(e) => setEditReason(e.target.value)}
-                placeholder="Explain why you're making these changes..."
-                rows={3}
-                required={user?.role !== "admin"}
-              />
-            </div>
             <div className="flex justify-end space-x-2">
               <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
@@ -1223,261 +1201,14 @@ export default function PurchasesPage() {
                       <p className={`font-semibold text-lg ${totalPurchaseQuantity - totalSalesQuantity >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
                         {totalPurchaseQuantity - totalSalesQuantity} units
                       </p>
-                      <p className="text-gray-700 dark:text-gray-300 text-sm">
-                        {totalPurchaseQuantity - totalSalesQuantity >= 0 ? 'Net Inflow' : 'Net Outflow'}
-                      </p>
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Profit Margin</Label>
-                      <p className={`font-semibold text-lg ${totalSalesValue - totalPurchaseValue >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        Rs {(totalSalesValue - totalPurchaseValue).toLocaleString()}
-                      </p>
-                      <p className="text-gray-700 dark:text-gray-300 text-sm">
-                        {totalPurchaseValue > 0 ? `${(((totalSalesValue - totalPurchaseValue) / totalPurchaseValue) * 100).toFixed(1)}% margin` : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sales Transactions */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>Sales Transactions ({productSales.length})</span>
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-100 dark:bg-gray-700">
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Client</TableHead>
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {productSales.length > 0 ? (
-                          productSales.map((sale) => (
-                            <TableRow key={sale.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
-                              <TableCell className="text-gray-700 dark:text-gray-300">
-                                {formatNepaliDateForTable(sale.saleDate)}
-                              </TableCell>
-                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
-                                {sale.client}
-                              </TableCell>
-                              <TableCell className="text-gray-700 dark:text-gray-300">
-                                {sale.quantitySold} units
-                              </TableCell>
-                              <TableCell className="text-gray-700 dark:text-gray-300">
-                                Rs {sale.salePrice.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="font-semibold text-green-600 dark:text-green-400">
-                                Rs {(sale.quantitySold * sale.salePrice).toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
-                              No sales transactions found for this product in {currentYear}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-
-                {/* Purchase Transactions */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span>Purchase Transactions ({productPurchases.length})</span>
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-gray-100 dark:bg-gray-700">
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Supplier</TableHead>
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
-                          <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {productPurchases.length > 0 ? (
-                          productPurchases.map((purchase) => (
-                            <TableRow key={purchase.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
-                              <TableCell className="text-gray-700 dark:text-gray-300">
-                                {formatNepaliDateForTable(purchase.purchaseDate)}
-                              </TableCell>
-                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
-                                {purchase.supplier}
-                              </TableCell>
-                              <TableCell className="text-gray-700 dark:text-gray-300">
-                                {purchase.quantityPurchased} units
-                              </TableCell>
-                              <TableCell className="text-gray-700 dark:text-gray-300">
-                                Rs {purchase.purchasePrice.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="font-semibold text-blue-600 dark:text-blue-400">
-                                Rs {(purchase.quantityPurchased * purchase.purchasePrice).toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
-                              No purchase transactions found for this product in {currentYear}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
                   </div>
                 </div>
               </div>
-            )
+            );
           })()}
-
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <Button 
-              type="button" 
-              variant="neutralOutline" 
-              onClick={() => setIsProductHistoryDialogOpen(false)}
-              className="px-6 py-2"
-            >
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Supplier Transaction History Dialog */}
-      <Dialog open={isSupplierHistoryDialogOpen} onOpenChange={setIsSupplierHistoryDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
-          <DialogHeader className="pb-6">
-            <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
-              <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
-                <svg className="h-6 w-6 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <span>Supplier Transaction History</span>
-            </DialogTitle>
-            <DialogDescription className="text-gray-600 dark:text-gray-400">
-              All transactions with <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedSupplierForHistory}</span> in {getCurrentNepaliYear()}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedSupplierForHistory && (
-            <div className="space-y-6">
-              {/* Supplier Summary */}
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  <span>Supplier Summary</span>
-                </h3>
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Supplier Name</Label>
-                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{selectedSupplierForHistory}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Purchases</Label>
-                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
-                      {purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).length} transactions
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Quantity</Label>
-                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">
-                      {purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).reduce((sum, p) => sum + p.quantityPurchased, 0)} units
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Value</Label>
-                    <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg text-orange-600 dark:text-orange-400">
-                      Rs {purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).reduce((sum, p) => sum + (p.quantityPurchased * p.purchasePrice), 0).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Purchase Transactions */}
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span>Purchase Transactions ({purchases.filter(p => p.supplier === selectedSupplierForHistory && getNepaliYear(p.purchaseDate) === getCurrentNepaliYear()).length})</span>
-                </h3>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-100 dark:bg-gray-700">
-                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Date</TableHead>
-                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product</TableHead>
-                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Quantity</TableHead>
-                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price</TableHead>
-                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(() => {
-                        const currentYear = getCurrentNepaliYear()
-                        const supplierPurchases = purchases.filter(purchase => 
-                          purchase.supplier === selectedSupplierForHistory && 
-                          getNepaliYear(purchase.purchaseDate) === currentYear
-                        ).sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
-                        
-                        return supplierPurchases.length > 0 ? (
-                          supplierPurchases.map((purchase) => (
-                            <TableRow key={purchase.id} className="hover:bg-gray-100 dark:hover:bg-gray-700/50">
-                              <TableCell className="text-gray-700 dark:text-gray-300">
-                                {formatNepaliDateForTable(purchase.purchaseDate)}
-                              </TableCell>
-                              <TableCell className="font-medium text-gray-900 dark:text-gray-100">
-                                {purchase.productName}
-                              </TableCell>
-                              <TableCell className="text-gray-700 dark:text-gray-300">
-                                {purchase.quantityPurchased} units
-                              </TableCell>
-                              <TableCell className="text-gray-700 dark:text-gray-300">
-                                Rs {purchase.purchasePrice.toLocaleString()}
-                              </TableCell>
-                              <TableCell className="font-semibold text-blue-600 dark:text-blue-400">
-                                Rs {(purchase.quantityPurchased * purchase.purchasePrice).toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
-                              No purchase transactions found for this supplier in {currentYear}
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })()}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <Button 
-              type="button" 
-              variant="neutralOutline" 
-              onClick={() => setIsSupplierHistoryDialogOpen(false)}
-              className="px-6 py-2"
-            >
-              Close
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

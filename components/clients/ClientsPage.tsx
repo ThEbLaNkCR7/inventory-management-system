@@ -288,7 +288,7 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
+    <div className="space-y-6 p-6 min-h-screen transition-colors duration-300">
       {/* Success/Info Alert */}
       {showSuccessAlert && (
         <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">

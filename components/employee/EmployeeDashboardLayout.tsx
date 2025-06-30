@@ -88,7 +88,7 @@ function EmployeeDashboardContent() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+    <div className="flex h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
       <EmployeeSidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       
       <div className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-300 ${
@@ -109,7 +109,7 @@ function EmployeeDashboardContent() {
         
         <main 
           ref={mainContentRef}
-          className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 lg:p-6 transition-colors duration-300"
+          className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-6 transition-colors duration-300"
         >
           {renderContent()}
         </main>

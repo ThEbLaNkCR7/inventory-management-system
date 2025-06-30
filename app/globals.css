@@ -198,7 +198,6 @@ html {
   .page-subtitle {
     @apply text-lg text-gray-600 dark:text-gray-400 mb-6;
     font-family: var(--font-outfit), 'Outfit', system-ui, sans-serif;
-    font-weight: 400;
   }
   
   /* Section Headers */
@@ -1094,4 +1093,225 @@ html {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ===== HEADER ANIMATIONS ===== */
+@keyframes gradient-x {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(-12deg);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-8px) rotate(120deg);
+  }
+  66% {
+    transform: translateY(4px) rotate(240deg);
+  }
+}
+
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes elegant-glow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes text-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes text-breathe {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.02);
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes text-glow {
+  0%, 100% {
+    text-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
+  }
+  50% {
+    text-shadow: 0 0 8px currentColor, 0 0 16px currentColor, 0 0 24px currentColor;
+  }
+}
+
+.animate-gradient-x {
+  background-size: 200% 200%;
+  animation: gradient-x 4s ease infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 3s ease-in-out infinite;
+}
+
+.animate-elegant-glow {
+  animation: elegant-glow 4s ease-in-out infinite;
+}
+
+.animate-text-float {
+  animation: text-float 3s ease-in-out infinite;
+}
+
+.animate-text-breathe {
+  animation: text-breathe 4s ease-in-out infinite;
+}
+
+.animate-text-glow {
+  animation: text-glow 2s ease-in-out infinite;
+}
+
+/* Custom gradient backgrounds for better performance */
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
+/* Responsive adjustments for header animations */
+@media (max-width: 768px) {
+  .animate-gradient-x {
+    animation-duration: 5s;
+  }
+  
+  .animate-shimmer {
+    animation-duration: 4s;
+  }
+  
+  .animate-float {
+    animation-duration: 10s;
+  }
+  
+  .animate-text-float {
+    animation-duration: 4s;
+  }
+  
+  .animate-text-breathe {
+    animation-duration: 5s;
+  }
+}
+
+@media (max-width: 640px) {
+  .animate-gradient-x {
+    animation-duration: 6s;
+  }
+  
+  .animate-shimmer {
+    animation-duration: 5s;
+  }
+  
+  .animate-float {
+    animation-duration: 12s;
+  }
+  
+  .animate-text-float {
+    animation-duration: 5s;
+  }
+  
+  .animate-text-breathe {
+    animation-duration: 6s;
+  }
+}
+
+/* Performance optimizations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-gradient-x,
+  .animate-shimmer,
+  .animate-float,
+  .animate-subtle-pulse,
+  .animate-elegant-glow,
+  .animate-text-float,
+  .animate-text-breathe,
+  .animate-text-glow {
+    animation: none;
+  }
+}
+
+/* Professional text effects */
+.text-glow-subtle {
+  text-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+}
+
+.text-glow-elegant {
+  text-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
+}
+
+.text-glow-intense {
+  text-shadow: 0 0 8px currentColor, 0 0 16px currentColor, 0 0 24px currentColor;
+}
+
+/* Letter spacing utilities */
+.tracking-wider {
+  letter-spacing: 0.05em;
+}
+
+.tracking-widest {
+  letter-spacing: 0.1em;
+}
+
+/* Text transform effects */
+.text-transform-elegant {
+  text-transform: uppercase;
+  font-variant: small-caps;
+  letter-spacing: 0.1em;
+}
+
+/* Glass morphism effects */
+.glass-effect {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass-effect {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
