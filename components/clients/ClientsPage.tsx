@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
-import { useNotifications } from "@/contexts/NotificationContext"
 
 export default function ClientsPage() {
   const { user } = useAuth()
@@ -44,12 +43,10 @@ export default function ClientsPage() {
     getClientTotalSpent,
     getClientOrderCount,
     getClientLastOrder,
-    sales,
-    refreshData
+    sales
   } = useInventory()
   const { submitChange } = useApproval()
   const { toast } = useToast()
-  const { addNotification } = useNotifications()
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -77,7 +74,6 @@ export default function ClientsPage() {
   const [totalSteps, setTotalSteps] = useState(0)
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
   const [approvalReason, setApprovalReason] = useState("")
-  const [pendingAction, setPendingAction] = useState<any>(null)
 
   const filteredClients = clients.filter(
     (client) =>
@@ -135,39 +131,17 @@ export default function ClientsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
     setIsAddDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      // Show live progress messages
-      toast({ 
-        title: "Processing...", 
-        description: "Validating client data...",
-        duration: 2000
-      })
-      
+      toast({ title: "Processing...", description: "Validating client data...", duration: 2000 })
       updateProgress("Validating client data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       if (user?.role === "admin") {
-        toast({ 
-          title: "Processing...", 
-          description: "Adding client to database...",
-          duration: 2000
-        })
-        
         updateProgress("Adding client to database...", 2, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Setting up client profile...",
-          duration: 2000
-        })
         
         updateProgress("Setting up client profile...", 3, 4)
         const companyName = formData.company === "custom" ? formData.customCompany : formData.company
@@ -194,26 +168,14 @@ export default function ClientsPage() {
         updateProgress("Operation completed!", 4, 4)
         await new Promise(resolve => setTimeout(resolve, 300))
         
-        resetForm()
-        
         toast({ title: "Success", description: "Client added successfully!", })
+        resetForm()
+        setIsAddDialogOpen(false)
         setShowSuccessAlert(true)
         setAlertMessage("Client added successfully!")
       } else {
-        toast({ 
-          title: "Processing...", 
-          description: "Preparing approval request...",
-          duration: 2000
-        })
-        
         updateProgress("Preparing approval request...", 2, 3)
         await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Submitting for approval...",
-          duration: 2000
-        })
         
         updateProgress("Submitting for approval...", 3, 3)
         setShowApprovalDialog(true)
@@ -277,140 +239,37 @@ export default function ClientsPage() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
     setIsEditDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
+      toast({ title: "Processing...", description: "Validating changes...", duration: 2000 })
+      updateProgress("Validating changes...", 1, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
       if (editingClient) {
-        // Show live progress messages
-        toast({ 
-          title: "Processing...", 
-          description: "Validating changes...",
-          duration: 2000
-        })
-        
-        updateProgress("Validating changes...", 1, 4)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        if (user?.role === "admin") {
-          toast({ 
-            title: "Processing...", 
-            description: "Updating client in database...",
-            duration: 2000
-          })
-          
-          updateProgress("Updating client in database...", 2, 4)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Refreshing client list...",
-            duration: 2000
-          })
-          
-          updateProgress("Refreshing client list...", 3, 4)
-          const companyName = formData.company === "custom" ? formData.customCompany : formData.company
-          const { customCompany, ...clientData } = formData
-          const updateData = {
-            ...clientData,
-            company: companyName,
-            address: {
-              street: formData.address,
-              city: "",
-              state: "",
-              zipCode: "",
-              country: "",
-            },
-            isActive: formData.status === "Active"
-          }
-          
-          await updateClient(editingClient.id, updateData)
-          
-          updateProgress("Operation completed!", 4, 4)
-          await new Promise(resolve => setTimeout(resolve, 300))
-          
-          resetForm()
-          setEditingClient(null)
-          
-          toast({ title: "Success", description: "Client updated successfully!", })
-          setShowSuccessAlert(true)
-          setAlertMessage("Client updated successfully!")
-          
-          // Add notification
-          addNotification({
-            type: 'success',
-            title: 'Client Updated',
-            message: `Client "${updateData.name}" has been successfully updated.`,
-            action: 'client_updated',
-            entityId: editingClient.id,
-            entityType: 'client'
-          })
-          
-          // Force refresh the data in the background
-          refreshData().catch(err => {
-            console.error("Failed to refresh data:", err)
-          })
-        } else {
-          toast({ 
-            title: "Processing...", 
-            description: "Preparing approval request...",
-            duration: 2000
-          })
-          
-          updateProgress("Preparing approval request...", 2, 3)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Submitting for approval...",
-            duration: 2000
-          })
-          
-          updateProgress("Submitting for approval...", 3, 3)
-          const companyName = formData.company === "custom" ? formData.customCompany : formData.company
-          const { customCompany, ...clientData } = formData
-          const updateData = {
-            ...clientData,
-            company: companyName,
-            address: {
-              street: formData.address,
-              city: "",
-              state: "",
-              zipCode: "",
-              country: "",
-            },
-            isActive: formData.status === "Active"
-          }
-          setPendingAction({ type: "update", data: updateData, clientId: editingClient.id })
-          setShowApprovalDialog(true)
-          
-          // Add notification for approval request
-          addNotification({
-            type: 'info',
-            title: 'Update Approval Request',
-            message: `Update for client "${updateData.name}" has been submitted for admin approval.`,
-            action: 'update_approval_requested',
-            entityId: editingClient.id,
-            entityType: 'client'
-          })
+        const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+        const { customCompany, ...clientData } = formData
+        const updateData = {
+          ...clientData,
+          company: companyName,
+          address: {
+            street: formData.address,
+            city: "",
+            state: "",
+            zipCode: "",
+            country: "",
+          },
+          isActive: formData.status === "Active"
         }
+        await updateClient(editingClient.id, updateData)
+        resetForm()
+        setIsEditDialogOpen(false)
+        setEditingClient(null)
+        setShowSuccessAlert(true)
+        setAlertMessage("Client updated successfully!")
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to update client."
-      toast({ title: "Error", description: errorMessage, variant: "destructive" })
-      
-      // Add error notification
-      addNotification({
-        type: 'error',
-        title: 'Client Update Failed',
-        message: errorMessage,
-        action: 'client_update_failed',
-        entityType: 'client'
-      })
+      toast({ title: "Error", description: "Failed to update client.", variant: "destructive" })
     } finally {
       setIsLoading(false)
       setProgress(0)
@@ -434,114 +293,20 @@ export default function ClientsPage() {
   }
 
   const handleDeleteConfirm = async () => {
-    // Close dialog immediately when delete is confirmed
     setIsDeleteDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      if (user?.role === "admin") {
-        // Show live progress messages
-        toast({ 
-          title: "Processing...", 
-          description: "Validating deletion request...",
-          duration: 2000
-        })
-        
-        updateProgress("Validating deletion request...", 1, 4)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Removing from database...",
-          duration: 2000
-        })
-        
-        updateProgress("Removing from database...", 2, 4)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Updating client list...",
-          duration: 2000
-        })
-        
-        updateProgress("Updating client list...", 3, 4)
+      toast({ title: "Processing...", description: "Validating deletion...", duration: 2000 })
+      updateProgress("Validating deletion...", 1, 3)
+      if (deletingClient) {
         await deleteClient(deletingClient.id)
-        
-        updateProgress("Operation completed!", 4, 4)
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
-        toast({ title: "Success", description: "Client deleted successfully!", })
         setDeletingClient(null)
-        
-        // Add notification
-        addNotification({
-          type: 'warning',
-          title: 'Client Deleted',
-          message: `Client "${deletingClient.name}" has been permanently deleted.`,
-          action: 'client_deleted',
-          entityId: deletingClient.id,
-          entityType: 'client'
-        })
-        
-        // Force refresh the data in the background
-        refreshData().catch(err => {
-          console.error("Failed to refresh data:", err)
-        })
-      } else {
-        toast({ 
-          title: "Processing...", 
-          description: "Preparing deletion request...",
-          duration: 2000
-        })
-        
-        updateProgress("Preparing deletion request...", 2, 3)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Submitting for approval...",
-          duration: 2000
-        })
-        
-        updateProgress("Submitting for approval...", 3, 3)
-        submitChange({ 
-          type: "client", 
-          action: "delete", 
-          entityId: deletingClient.id, 
-          originalData: deletingClient, 
-          proposedData: { deleted: true }, 
-          requestedBy: user?.email || "", 
-          reason: `Request to delete client: ${deletingClient.name}` 
-        })
-        
-        toast({ title: "Submitted", description: "Client deletion submitted for approval!" })
-        setDeletingClient(null)
-        
-        // Add notification for deletion request
-        addNotification({
-          type: 'info',
-          title: 'Deletion Approval Request',
-          message: `Deletion request for client "${deletingClient.name}" has been submitted for admin approval.`,
-          action: 'deletion_approval_requested',
-          entityId: deletingClient.id,
-          entityType: 'client'
-        })
+        setShowSuccessAlert(true)
+        setAlertMessage("Client deleted successfully!")
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to delete client."
-      toast({ title: "Error", description: errorMessage, variant: "destructive" })
-      
-      // Add error notification
-      addNotification({
-        type: 'error',
-        title: 'Client Deletion Failed',
-        message: errorMessage,
-        action: 'client_deletion_failed',
-        entityType: 'client'
-      })
+      toast({ title: "Error", description: "Failed to delete client.", variant: "destructive" })
     } finally {
       setIsLoading(false)
       setProgress(0)
@@ -553,7 +318,7 @@ export default function ClientsPage() {
     <div className="space-y-6 p-6 min-h-screen transition-colors duration-300">
       {/* Success/Info Alert */}
       {showSuccessAlert && (
-        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4 mb-4">
           <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
           <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
         </Alert>

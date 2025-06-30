@@ -1,10 +1,9 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
-import { useNotifications } from "@/contexts/NotificationContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,19 +29,9 @@ import { Progress } from "@/components/ui/progress"
 
 export default function SalesPage() {
   const { user } = useAuth()
-  const { 
-    sales, 
-    addSale, 
-    updateSale, 
-    deleteSale,
-    products,
-    clients,
-    purchases,
-    refreshData
-  } = useInventory()
+  const { products, sales, clients, purchases, addSale, updateSale, deleteSale } = useInventory()
   const { submitChange } = useApproval()
   const { toast } = useToast()
-  const { addNotification } = useNotifications()
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -73,6 +62,15 @@ export default function SalesPage() {
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState("")
   const [totalSteps, setTotalSteps] = useState(0)
+
+  useEffect(() => {
+    if (showSuccessAlert) {
+      const timer = setTimeout(() => {
+        setShowSuccessAlert(false)
+      }, 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [showSuccessAlert])
 
   // Filter sales based on search term and active tab
   const getFilteredSales = () => {
@@ -120,7 +118,6 @@ export default function SalesPage() {
   const showAlert = (message: string, isSuccess = true) => {
     setAlertMessage(message)
     setShowSuccessAlert(isSuccess)
-    setTimeout(() => setShowSuccessAlert(false), 5000)
   }
 
   const updateProgress = (step: string, current: number, total: number) => {
@@ -131,50 +128,23 @@ export default function SalesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
+    // Close form instantly
     setIsAddDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      // Show live progress messages
-      toast({ 
-        title: "Processing...", 
-        description: "Validating sale data...",
-        duration: 2000
-      })
-      
+      toast({ title: "Processing...", description: "Validating sale data...", duration: 2000 })
       updateProgress("Validating sale data...", 1, 5)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       const product = products.find((p) => p.id === formData.productId)
       if (product && product.stockQuantity >= formData.quantitySold) {
-        toast({ 
-          title: "Processing...", 
-          description: "Checking stock availability...",
-          duration: 2000
-        })
-        
         updateProgress("Checking stock availability...", 2, 5)
         await new Promise(resolve => setTimeout(resolve, 500))
         
         if (user?.role === "admin") {
-          toast({ 
-            title: "Processing...", 
-            description: "Recording sale transaction...",
-            duration: 2000
-          })
-          
           updateProgress("Recording sale transaction...", 3, 5)
           await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Updating inventory levels...",
-            duration: 2000
-          })
           
           updateProgress("Updating inventory levels...", 4, 5)
           const clientName = formData.client === "custom" ? formData.customClient : formData.client
@@ -184,26 +154,10 @@ export default function SalesPage() {
           updateProgress("Operation completed!", 5, 5)
           await new Promise(resolve => setTimeout(resolve, 300))
           
-          resetForm()
-          
           toast({ title: "Success", description: "Sale recorded successfully!", })
-          setShowSuccessAlert(true)
-          setAlertMessage("Sale added successfully!")
         } else {
-          toast({ 
-            title: "Processing...", 
-            description: "Preparing approval request...",
-            duration: 2000
-          })
-          
           updateProgress("Preparing approval request...", 3, 4)
           await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Submitting for approval...",
-            duration: 2000
-          })
           
           updateProgress("Submitting for approval...", 4, 4)
           const clientName = formData.client === "custom" ? formData.customClient : formData.client
@@ -211,6 +165,9 @@ export default function SalesPage() {
           submitChange({ type: "sale", action: "create", proposedData: { ...saleData, productName: product.name, client: clientName }, requestedBy: user?.email || "", reason: editReason || "New sale record", })
           toast({ title: "Submitted", description: "Sale submitted for admin approval." })
         }
+        
+        resetForm()
+        showAlert("Sale added successfully!", true)
       } else {
         toast({ title: "Error", description: "Insufficient stock for this sale.", variant: "destructive" })
       }
@@ -226,6 +183,10 @@ export default function SalesPage() {
   const handleEdit = (sale: any) => {
     setEditingSale(sale)
     const product = products.find((p) => p.name === sale.productName)
+    
+    // Convert date to YYYY-MM-DD format for HTML date input
+    const formattedDate = new Date(sale.saleDate).toISOString().split('T')[0]
+    
     setFormData({
       productId: product?.id || "",
       client: sale.client,
@@ -233,57 +194,30 @@ export default function SalesPage() {
       customClient: "",
       quantitySold: sale.quantitySold,
       salePrice: sale.salePrice,
-      saleDate: sale.saleDate,
+      saleDate: formattedDate,
     })
     setIsEditDialogOpen(true)
   }
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
+    // Close form instantly
     setIsEditDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      // Show live progress messages
-      toast({ 
-        title: "Processing...", 
-        description: "Validating changes...",
-        duration: 2000
-      })
-      
+      toast({ title: "Processing...", description: "Validating changes...", duration: 2000 })
       updateProgress("Validating changes...", 1, 5)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       const product = products.find((p) => p.id === formData.productId)
       if (product && editingSale && (user?.role === "admin" || editReason.trim())) {
-        toast({ 
-          title: "Processing...", 
-          description: "Checking stock availability...",
-          duration: 2000
-        })
-        
         updateProgress("Checking stock availability...", 2, 5)
         await new Promise(resolve => setTimeout(resolve, 500))
         
         if (user?.role === "admin") {
-          toast({ 
-            title: "Processing...", 
-            description: "Updating sale record...",
-            duration: 2000
-          })
-          
           updateProgress("Updating sale record...", 3, 5)
           await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Adjusting inventory...",
-            duration: 2000
-          })
           
           updateProgress("Adjusting inventory...", 4, 5)
           const clientName = formData.client === "custom" ? formData.customClient : formData.client
@@ -293,27 +227,10 @@ export default function SalesPage() {
           updateProgress("Operation completed!", 5, 5)
           await new Promise(resolve => setTimeout(resolve, 300))
           
-          setEditingSale(null)
-          resetForm()
-          
           toast({ title: "Success", description: "Sale updated successfully!", })
-          setShowSuccessAlert(true)
-          setAlertMessage("Sale updated successfully!")
         } else {
-          toast({ 
-            title: "Processing...", 
-            description: "Preparing approval request...",
-            duration: 2000
-          })
-          
           updateProgress("Preparing approval request...", 3, 4)
           await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Submitting for approval...",
-            duration: 2000
-          })
           
           updateProgress("Submitting for approval...", 4, 4)
           const clientName = formData.client === "custom" ? formData.customClient : formData.client
@@ -322,10 +239,8 @@ export default function SalesPage() {
           toast({ title: "Submitted", description: "Sale changes submitted for admin approval." })
         }
         
-        setEditingSale(null)
         resetForm()
-        setShowSuccessAlert(true)
-        setAlertMessage("Sale updated successfully!")
+        showAlert("Sale updated successfully!", true)
       } else if (user?.role !== "admin" && !editReason.trim()) {
         toast({ title: "Error", description: "Please provide a reason for the changes.", variant: "destructive" })
       }
@@ -359,36 +274,43 @@ export default function SalesPage() {
   }
 
   const handleDeleteConfirm = async () => {
+    // Close dialog instantly
+    setIsDeleteDialogOpen(false)
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      updateProgress("Validating deletion...", 1, 4)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      toast({ title: "Processing...", description: "Validating deletion...", duration: 2000 })
+      updateProgress("Validating deletion...", 1, 3)
       
       if (deletingSale && (user?.role === "admin" || deleteReason.trim())) {
         if (user?.role === "admin") {
-          updateProgress("Removing sale record...", 2, 4)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          updateProgress("Adjusting inventory...", 3, 4)
+          updateProgress("Removing sale record...", 2, 3)
           await deleteSale(deletingSale.id)
-          
-          updateProgress("Operation completed!", 4, 4)
-          await new Promise(resolve => setTimeout(resolve, 300))
-          
+          updateProgress("Operation completed!", 3, 3)
           toast({ title: "Success", description: "Sale deleted successfully!", })
+          setDeletingSale(null)
+          showAlert("Sale deleted successfully!", true)
         } else {
-          updateProgress("Preparing deletion request...", 2, 3)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          updateProgress("Submitting for approval...", 3, 3)
-          submitChange({ type: "sale", action: "delete", entityId: deletingSale.id, originalData: { productName: deletingSale.productName, client: deletingSale.client, quantitySold: deletingSale.quantitySold, salePrice: deletingSale.salePrice, saleDate: deletingSale.saleDate, }, proposedData: {}, requestedBy: user?.email || "", reason: deleteReason, })
+          updateProgress("Submitting for approval...", 2, 3)
+          submitChange({ 
+            type: "sale", 
+            action: "delete", 
+            entityId: deletingSale.id, 
+            originalData: { 
+              productName: deletingSale.productName, 
+              client: deletingSale.client, 
+              quantitySold: deletingSale.quantitySold, 
+              salePrice: deletingSale.salePrice, 
+              saleDate: deletingSale.saleDate, 
+            }, 
+            proposedData: {}, 
+            requestedBy: user?.email || "", 
+            reason: deleteReason, 
+          })
           toast({ title: "Submitted", description: "Sale deletion submitted for admin approval." })
+          setDeletingSale(null)
+          setDeleteReason("")
         }
-        setIsDeleteDialogOpen(false)
-        setDeletingSale(null)
-        setDeleteReason("")
       } else if (user?.role !== "admin" && !deleteReason.trim()) {
         toast({ title: "Error", description: "Please provide a reason for deleting this sale.", variant: "destructive" })
       }
@@ -430,7 +352,7 @@ export default function SalesPage() {
       )}
       {/* Success/Info Alert */}
       {showSuccessAlert && (
-        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4 mb-4">
           <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
           <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
         </Alert>

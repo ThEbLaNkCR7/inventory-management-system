@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import Purchase from '../../models/Purchase.js'
+import Supplier from '../../models/Supplier.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 
@@ -41,36 +41,21 @@ async function dbConnect() {
 export default async function handler(req, res) {
   await dbConnect()
   const { method } = req
-  
   switch (method) {
     case 'GET':
       try {
-        const purchases = await Purchase.find({ isActive: { $ne: false } })
-        res.status(200).json({ purchases })
+        const suppliers = await Supplier.find({ isActive: true })
+        res.status(200).json({ suppliers })
       } catch (error) {
-        console.error('GET purchases error:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break
     case 'POST':
       try {
-        const purchaseData = req.body
-        
-        // Calculate total amount and set payment defaults
-        const totalAmount = purchaseData.quantityPurchased * purchaseData.purchasePrice
-        const purchase = new Purchase({
-          ...purchaseData,
-          totalAmount,
-          paidAmount: 0,
-          paymentStatus: "Pending",
-          dueDate: purchaseData.dueDate || null,
-          paymentTerms: purchaseData.paymentTerms || "Immediate"
-        })
-        
-        await purchase.save()
-        res.status(201).json(purchase)
+        const supplier = new Supplier(req.body)
+        await supplier.save()
+        res.status(201).json(supplier)
       } catch (error) {
-        console.error('POST purchase error:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break

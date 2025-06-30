@@ -115,14 +115,12 @@ const Client = mongoose.models.Client || mongoose.model("Client", clientSchema)
 export default async function handler(req, res) {
   await dbConnect()
   const { method } = req
-  
   switch (method) {
     case 'GET':
       try {
-        const clients = await Client.find({ isActive: { $ne: false } })
+        const clients = await Client.find({ isActive: true })
         res.status(200).json({ clients })
       } catch (error) {
-        console.error('GET clients error:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break
@@ -132,7 +130,6 @@ export default async function handler(req, res) {
         await client.save()
         res.status(201).json(client)
       } catch (error) {
-        console.error('POST client error:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break

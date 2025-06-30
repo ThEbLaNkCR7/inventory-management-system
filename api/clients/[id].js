@@ -81,17 +81,6 @@ const clientSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    totalSpent: {
-      type: Number,
-      default: 0,
-    },
-    orders: {
-      type: Number,
-      default: 0,
-    },
-    lastOrder: {
-      type: Date,
-    },
     isActive: {
       type: Boolean,
       default: true,
@@ -116,13 +105,6 @@ export default async function handler(req, res) {
   await dbConnect()
   const { method } = req
   const { id } = req.query
-  
-  if (!id) {
-    return res.status(400).json({ message: 'Client ID required' })
-  }
-  
-  console.log(`API Request: ${method} /api/clients/${id}`)
-  
   switch (method) {
     case 'GET':
       try {
@@ -136,10 +118,8 @@ export default async function handler(req, res) {
       break
     case 'PUT':
       try {
-        console.log(`Updating client ${id} with data:`, req.body)
         const client = await Client.findByIdAndUpdate(id, req.body, { new: true, runValidators: true })
         if (!client) return res.status(404).json({ message: 'Client not found' })
-        console.log(`Client updated successfully:`, client)
         res.status(200).json(client)
       } catch (error) {
         console.error("Update client error:", error)

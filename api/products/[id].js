@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import Sale from '../../models/Sale.js'
+import Product from '../../models/Product.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 
@@ -42,43 +42,31 @@ export default async function handler(req, res) {
   await dbConnect()
   const { method } = req
   const { id } = req.query
-  
-  if (!id) {
-    return res.status(400).json({ message: 'Sale ID required' })
-  }
-  
-  console.log(`API Request: ${method} /api/sales/${id}`)
-  
   switch (method) {
     case 'GET':
       try {
-        const sale = await Sale.findById(id)
-        if (!sale) return res.status(404).json({ message: 'Sale not found' })
-        res.status(200).json(sale)
+        const product = await Product.findById(id)
+        if (!product) return res.status(404).json({ message: 'Product not found' })
+        res.status(200).json(product)
       } catch (error) {
-        console.error("Get sale error:", error)
         res.status(500).json({ message: 'Server error' })
       }
       break
     case 'PUT':
       try {
-        console.log(`Updating sale ${id} with data:`, req.body)
-        const sale = await Sale.findByIdAndUpdate(id, req.body, { new: true, runValidators: true })
-        if (!sale) return res.status(404).json({ message: 'Sale not found' })
-        console.log(`Sale updated successfully:`, sale)
-        res.status(200).json(sale)
+        const product = await Product.findByIdAndUpdate(id, req.body, { new: true, runValidators: true })
+        if (!product) return res.status(404).json({ message: 'Product not found' })
+        res.status(200).json(product)
       } catch (error) {
-        console.error("Update sale error:", error)
         res.status(500).json({ message: 'Server error' })
       }
       break
     case 'DELETE':
       try {
-        const sale = await Sale.findByIdAndUpdate(id, { isActive: false }, { new: true })
-        if (!sale) return res.status(404).json({ message: 'Sale not found' })
-        res.status(200).json({ message: 'Sale deleted successfully' })
+        const product = await Product.findByIdAndUpdate(id, { isActive: false }, { new: true })
+        if (!product) return res.status(404).json({ message: 'Product not found' })
+        res.status(200).json({ message: 'Product deleted successfully' })
       } catch (error) {
-        console.error("Delete sale error:", error)
         res.status(500).json({ message: 'Server error' })
       }
       break
@@ -86,4 +74,4 @@ export default async function handler(req, res) {
       res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
       res.status(405).end(`Method ${method} Not Allowed`)
   }
-} 
+}

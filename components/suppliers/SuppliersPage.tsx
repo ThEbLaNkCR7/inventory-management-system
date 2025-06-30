@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
@@ -34,7 +34,6 @@ import { useToast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
-import { useNotifications } from "@/contexts/NotificationContext"
 
 export default function SuppliersPage() {
   const { user } = useAuth()
@@ -46,8 +45,7 @@ export default function SuppliersPage() {
     getSupplierTotalSpent,
     getSupplierOrderCount,
     getSupplierLastOrder,
-    purchases,
-    refreshData
+    purchases
   } = useInventory()
   const { submitChange } = useApproval()
   const [searchTerm, setSearchTerm] = useState("")
@@ -79,7 +77,15 @@ export default function SuppliersPage() {
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState("")
   const [totalSteps, setTotalSteps] = useState(0)
-  const { addNotification } = useNotifications()
+
+  useEffect(() => {
+    if (showSuccessAlert) {
+      const timer = setTimeout(() => {
+        setShowSuccessAlert(false)
+      }, 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [showSuccessAlert])
 
   const filteredSuppliers = suppliers.filter(
     (supplier) =>
@@ -115,41 +121,15 @@ export default function SuppliersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
     setIsAddDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      // Show live progress messages
-      toast({ 
-        title: "Processing...", 
-        description: "Validating supplier data...",
-        duration: 2000
-      })
-      
-      updateProgress("Validating supplier data...", 1, 4)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      toast({ title: "Processing...", description: "Validating supplier data...", duration: 2000 })
+      updateProgress("Validating supplier data...", 1, 3)
       
       if (user?.role === "admin") {
-        toast({ 
-          title: "Processing...", 
-          description: "Adding supplier to database...",
-          duration: 2000
-        })
-        
-        updateProgress("Adding supplier to database...", 2, 4)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Setting up supplier profile...",
-          duration: 2000
-        })
-        
-        updateProgress("Setting up supplier profile...", 3, 4)
+        updateProgress("Adding supplier to database...", 2, 3)
         const companyName = formData.company === "custom" ? formData.customCompany : formData.company
         const { customCompany, ...supplierData } = formData
         await addSupplier({ 
@@ -160,38 +140,13 @@ export default function SuppliersPage() {
           lastOrder: new Date().toISOString().split('T')[0] 
         })
         
-        updateProgress("Operation completed!", 4, 4)
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
-        resetForm()
-        
+        updateProgress("Operation completed!", 3, 3)
         toast({ title: "Success", description: "Supplier added successfully!", })
+        resetForm()
         setShowSuccessAlert(true)
         setAlertMessage("Supplier added successfully!")
-        addNotification({
-          type: 'success',
-          title: 'Supplier Added',
-          message: 'Supplier has been successfully added to the system.',
-          action: 'supplier_added',
-          entityType: 'supplier'
-        })
       } else {
-        toast({ 
-          title: "Processing...", 
-          description: "Preparing approval request...",
-          duration: 2000
-        })
-        
-        updateProgress("Preparing approval request...", 2, 3)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Submitting for approval...",
-          duration: 2000
-        })
-        
-        updateProgress("Submitting for approval...", 3, 3)
+        updateProgress("Submitting for approval...", 2, 3)
         setShowApprovalDialog(true)
       }
     } catch (err) {
@@ -224,13 +179,6 @@ export default function SuppliersPage() {
     setShowApprovalDialog(false)
     setApprovalReason("")
     showAlert("Supplier request submitted for approval!")
-    addNotification({
-      type: 'info',
-      title: 'Approval Request',
-      message: 'Supplier request has been submitted for admin approval.',
-      action: 'approval_requested',
-      entityType: 'supplier'
-    })
   }
 
   const handleEdit = (supplier: any) => {
@@ -249,86 +197,29 @@ export default function SuppliersPage() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
     setIsEditDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      // Show live progress messages
-      toast({ 
-        title: "Processing...", 
-        description: "Validating changes...",
-        duration: 2000
-      })
-      
-      updateProgress("Validating changes...", 1, 4)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      toast({ title: "Processing...", description: "Validating changes...", duration: 2000 })
+      updateProgress("Validating changes...", 1, 3)
       
       if (editingSupplier && (user?.role === "admin" || approvalReason.trim())) {
         if (user?.role === "admin") {
-          toast({ 
-            title: "Processing...", 
-            description: "Updating supplier in database...",
-            duration: 2000
-          })
-          
-          updateProgress("Updating supplier in database...", 2, 4)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Refreshing supplier data...",
-            duration: 2000
-          })
-          
-          updateProgress("Refreshing supplier data...", 3, 4)
+          updateProgress("Updating supplier in database...", 2, 3)
           const companyName = formData.company === "custom" ? formData.customCompany : formData.company
           const { customCompany, ...supplierData } = formData
           await updateSupplier(editingSupplier.id, { ...supplierData, company: companyName })
           
-          updateProgress("Operation completed!", 4, 4)
-          await new Promise(resolve => setTimeout(resolve, 300))
-          
+          updateProgress("Operation completed!", 3, 3)
+          toast({ title: "Success", description: "Supplier updated successfully!", })
           resetForm()
           setEditingSupplier(null)
           setApprovalReason("")
-          
-          toast({ title: "Success", description: "Supplier updated successfully!", })
           setShowSuccessAlert(true)
           setAlertMessage("Supplier updated successfully!")
-          addNotification({
-            type: 'success',
-            title: 'Supplier Updated',
-            message: `Supplier "${formData.name}" has been successfully updated.`,
-            action: 'supplier_updated',
-            entityId: editingSupplier.id,
-            entityType: 'supplier'
-          })
-          
-          // Force refresh the data in the background
-          refreshData().catch(err => {
-            console.error("Failed to refresh data:", err)
-          })
         } else {
-          toast({ 
-            title: "Processing...", 
-            description: "Preparing approval request...",
-            duration: 2000
-          })
-          
-          updateProgress("Preparing approval request...", 2, 3)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Submitting for approval...",
-            duration: 2000
-          })
-          
-          updateProgress("Submitting for approval...", 3, 3)
+          updateProgress("Submitting for approval...", 2, 3)
           const companyName = formData.company === "custom" ? formData.customCompany : formData.company
           const { customCompany, ...supplierData } = formData
           submitChange({ 
@@ -348,19 +239,10 @@ export default function SuppliersPage() {
             reason: approvalReason, 
           })
           toast({ title: "Submitted", description: "Supplier changes submitted for admin approval." })
-          
-          addNotification({
-            type: 'info',
-            title: 'Update Approval Request',
-            message: `Update for supplier "${formData.name}" has been submitted for admin approval.`,
-            action: 'update_approval_requested',
-            entityId: editingSupplier.id,
-            entityType: 'supplier'
-          })
+          resetForm()
+          setEditingSupplier(null)
+          setApprovalReason("")
         }
-        resetForm()
-        setEditingSupplier(null)
-        setApprovalReason("")
       } else if (user?.role !== "admin" && !approvalReason.trim()) {
         toast({ title: "Error", description: "Please provide a reason for the changes.", variant: "destructive" })
       }
@@ -389,58 +271,43 @@ export default function SuppliersPage() {
   }
 
   const handleDeleteConfirm = async () => {
+    setIsDeleteDialogOpen(false)
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      updateProgress("Validating deletion...", 1, 4)
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
+      toast({ title: "Processing...", description: "Validating deletion...", duration: 2000 })
+      updateProgress("Validating deletion...", 1, 3)
       if (deletingSupplier && (user?.role === "admin" || deleteReason.trim())) {
         if (user?.role === "admin") {
-          updateProgress("Removing supplier from database...", 2, 4)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          updateProgress("Cleaning up supplier data...", 3, 4)
+          updateProgress("Removing supplier from database...", 2, 3)
           await deleteSupplier(deletingSupplier.id)
-          
-          updateProgress("Operation completed!", 4, 4)
-          await new Promise(resolve => setTimeout(resolve, 300))
-          
+          updateProgress("Operation completed!", 3, 3)
           toast({ title: "Success", description: "Supplier deleted successfully!", })
-          addNotification({
-            type: 'warning',
-            title: 'Supplier Deleted',
-            message: `Supplier "${deletingSupplier.name}" has been permanently deleted.`,
-            action: 'supplier_deleted',
-            entityId: deletingSupplier.id,
-            entityType: 'supplier'
-          })
-          
-          // Force refresh the data in the background
-          refreshData().catch(err => {
-            console.error("Failed to refresh data:", err)
-          })
+          setDeletingSupplier(null)
+          setShowSuccessAlert(true)
+          setAlertMessage("Supplier deleted successfully!")
         } else {
-          updateProgress("Preparing deletion request...", 2, 3)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          updateProgress("Submitting for approval...", 3, 3)
-          submitChange({ type: "supplier", action: "delete", entityId: deletingSupplier.id, originalData: { name: deletingSupplier.name, email: deletingSupplier.email, phone: deletingSupplier.phone, company: deletingSupplier.company, address: deletingSupplier.address, status: deletingSupplier.status, }, proposedData: {}, requestedBy: user?.email || "", reason: deleteReason, })
-          toast({ title: "Submitted", description: "Supplier deletion submitted for admin approval." })
-          
-          addNotification({
-            type: 'info',
-            title: 'Delete Approval Request',
-            message: `Delete for supplier "${deletingSupplier.name}" has been submitted for admin approval.`,
-            action: 'delete_approval_requested',
-            entityId: deletingSupplier.id,
-            entityType: 'supplier'
+          updateProgress("Submitting for approval...", 2, 3)
+          submitChange({ 
+            type: "supplier", 
+            action: "delete", 
+            entityId: deletingSupplier.id, 
+            originalData: { 
+              name: deletingSupplier.name, 
+              email: deletingSupplier.email, 
+              phone: deletingSupplier.phone, 
+              company: deletingSupplier.company, 
+              address: deletingSupplier.address, 
+              status: deletingSupplier.status, 
+            }, 
+            proposedData: {}, 
+            requestedBy: user?.email || "", 
+            reason: deleteReason, 
           })
+          toast({ title: "Submitted", description: "Supplier deletion submitted for admin approval." })
+          setDeletingSupplier(null)
+          setDeleteReason("")
         }
-        setIsDeleteDialogOpen(false)
-        setDeletingSupplier(null)
-        setDeleteReason("")
       } else if (user?.role !== "admin" && !deleteReason.trim()) {
         toast({ title: "Error", description: "Please provide a reason for deleting this supplier.", variant: "destructive" })
       }
@@ -482,7 +349,7 @@ export default function SuppliersPage() {
       )}
       {/* Success/Info Alert */}
       {showSuccessAlert && (
-        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4 mb-4">
           <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
           <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
         </Alert>

@@ -285,7 +285,7 @@ export default function Header({ user, onMenuClick, sidebarOpen, isMobile }: Hea
                   {notifications.slice(0, 10).map((notification) => (
                     <div key={notification.id} className="relative group">
                       <DropdownMenuItem 
-                        className={`flex flex-col items-start p-3 gap-2 cursor-pointer ${!notification.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
+                        className={`flex flex-col items-start p-4 gap-2 rounded-lg mb-2 cursor-pointer ${!notification.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
                         onClick={() => markAsRead(notification.id)}
                       >
                         <div className="flex items-start justify-between w-full">

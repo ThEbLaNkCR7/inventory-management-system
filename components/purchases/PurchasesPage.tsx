@@ -1,10 +1,9 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
-import { useNotifications } from "@/contexts/NotificationContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,19 +29,9 @@ import { Progress } from "@/components/ui/progress"
 
 export default function PurchasesPage() {
   const { user } = useAuth()
-  const { 
-    purchases, 
-    addPurchase, 
-    updatePurchase, 
-    deletePurchase,
-    products,
-    suppliers,
-    sales,
-    refreshData
-  } = useInventory()
+  const { products, purchases, suppliers, sales, addPurchase, updatePurchase, deletePurchase } = useInventory()
   const { submitChange } = useApproval()
   const { toast } = useToast()
-  const { addNotification } = useNotifications()
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -73,6 +62,15 @@ export default function PurchasesPage() {
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState("")
   const [totalSteps, setTotalSteps] = useState(0)
+
+  useEffect(() => {
+    if (showSuccessAlert) {
+      const timer = setTimeout(() => {
+        setShowSuccessAlert(false)
+      }, 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [showSuccessAlert])
 
   // Filter purchases based on search term and active tab
   const getFilteredPurchases = () => {
@@ -120,7 +118,6 @@ export default function PurchasesPage() {
   const showAlert = (message: string, isSuccess = true) => {
     setAlertMessage(message)
     setShowSuccessAlert(isSuccess)
-    setTimeout(() => setShowSuccessAlert(false), 5000)
   }
 
   const updateProgress = (step: string, current: number, total: number) => {
@@ -131,50 +128,23 @@ export default function PurchasesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
+    // Close form instantly
     setIsAddDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      // Show live progress messages
-      toast({ 
-        title: "Processing...", 
-        description: "Validating purchase data...",
-        duration: 2000
-      })
-      
+      toast({ title: "Processing...", description: "Validating purchase data...", duration: 2000 })
       updateProgress("Validating purchase data...", 1, 5)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       const product = products.find((p) => p.id === formData.productId)
       if (product) {
-        toast({ 
-          title: "Processing...", 
-          description: "Checking product availability...",
-          duration: 2000
-        })
-        
         updateProgress("Checking product availability...", 2, 5)
         await new Promise(resolve => setTimeout(resolve, 500))
         
         if (user?.role === "admin") {
-          toast({ 
-            title: "Processing...", 
-            description: "Recording purchase transaction...",
-            duration: 2000
-          })
-          
           updateProgress("Recording purchase transaction...", 3, 5)
           await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Updating inventory levels...",
-            duration: 2000
-          })
           
           updateProgress("Updating inventory levels...", 4, 5)
           const supplierName = formData.supplier === "custom" ? formData.customSupplier : formData.supplier
@@ -184,24 +154,10 @@ export default function PurchasesPage() {
           updateProgress("Operation completed!", 5, 5)
           await new Promise(resolve => setTimeout(resolve, 300))
           
-          resetForm()
-          
           toast({ title: "Success", description: "Purchase recorded successfully!", })
         } else {
-          toast({ 
-            title: "Processing...", 
-            description: "Preparing approval request...",
-            duration: 2000
-          })
-          
           updateProgress("Preparing approval request...", 3, 4)
           await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Submitting for approval...",
-            duration: 2000
-          })
           
           updateProgress("Submitting for approval...", 4, 4)
           const supplierName = formData.supplier === "custom" ? formData.customSupplier : formData.supplier
@@ -222,6 +178,10 @@ export default function PurchasesPage() {
   const handleEdit = (purchase: any) => {
     setEditingPurchase(purchase)
     const product = products.find((p) => p.name === purchase.productName)
+    
+    // Convert date to YYYY-MM-DD format for HTML date input
+    const formattedDate = new Date(purchase.purchaseDate).toISOString().split('T')[0]
+    
     setFormData({
       productId: product?.id || "",
       supplier: purchase.supplier,
@@ -229,57 +189,30 @@ export default function PurchasesPage() {
       customSupplier: "",
       quantityPurchased: purchase.quantityPurchased,
       purchasePrice: purchase.purchasePrice,
-      purchaseDate: purchase.purchaseDate,
+      purchaseDate: formattedDate,
     })
     setIsEditDialogOpen(true)
   }
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
+    // Close form instantly
     setIsEditDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      // Show live progress messages
-      toast({ 
-        title: "Processing...", 
-        description: "Validating changes...",
-        duration: 2000
-      })
-      
+      toast({ title: "Processing...", description: "Validating changes...", duration: 2000 })
       updateProgress("Validating changes...", 1, 5)
       await new Promise(resolve => setTimeout(resolve, 500))
       
       const product = products.find((p) => p.id === formData.productId)
       if (product && editingPurchase && (user?.role === "admin" || editReason.trim())) {
-        toast({ 
-          title: "Processing...", 
-          description: "Checking product availability...",
-          duration: 2000
-        })
-        
         updateProgress("Checking product availability...", 2, 5)
         await new Promise(resolve => setTimeout(resolve, 500))
         
         if (user?.role === "admin") {
-          toast({ 
-            title: "Processing...", 
-            description: "Updating purchase record...",
-            duration: 2000
-          })
-          
           updateProgress("Updating purchase record...", 3, 5)
           await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Adjusting inventory...",
-            duration: 2000
-          })
           
           updateProgress("Adjusting inventory...", 4, 5)
           const supplierName = formData.supplier === "custom" ? formData.customSupplier : formData.supplier
@@ -289,25 +222,10 @@ export default function PurchasesPage() {
           updateProgress("Operation completed!", 5, 5)
           await new Promise(resolve => setTimeout(resolve, 300))
           
-          setEditingPurchase(null)
-          resetForm()
-          
           toast({ title: "Success", description: "Purchase updated successfully!", })
         } else {
-          toast({ 
-            title: "Processing...", 
-            description: "Preparing approval request...",
-            duration: 2000
-          })
-          
           updateProgress("Preparing approval request...", 3, 4)
           await new Promise(resolve => setTimeout(resolve, 500))
-          
-          toast({ 
-            title: "Processing...", 
-            description: "Submitting for approval...",
-            duration: 2000
-          })
           
           updateProgress("Submitting for approval...", 4, 4)
           const supplierName = formData.supplier === "custom" ? formData.customSupplier : formData.supplier
@@ -315,9 +233,6 @@ export default function PurchasesPage() {
           submitChange({ type: "purchase", action: "update", entityId: editingPurchase.id, originalData: { productName: editingPurchase.productName, supplier: editingPurchase.supplier, quantityPurchased: editingPurchase.quantityPurchased, purchasePrice: editingPurchase.purchasePrice, purchaseDate: editingPurchase.purchaseDate }, proposedData: { ...purchaseData, productName: product.name, supplier: supplierName }, requestedBy: user?.email || "", reason: editReason, })
           toast({ title: "Submitted", description: "Purchase changes submitted for admin approval." })
         }
-        
-        setEditingPurchase(null)
-        resetForm()
       } else if (user?.role !== "admin" && !editReason.trim()) {
         toast({ title: "Error", description: "Please provide a reason for the changes.", variant: "destructive" })
       }
@@ -351,36 +266,43 @@ export default function PurchasesPage() {
   }
 
   const handleDeleteConfirm = async () => {
+    setIsDeleteDialogOpen(false)
     setIsLoading(true)
     setProgress(0)
-    
     try {
-      updateProgress("Validating deletion...", 1, 4)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      toast({ title: "Processing...", description: "Validating deletion...", duration: 2000 })
+      updateProgress("Validating deletion...", 1, 3)
       
       if (deletingPurchase && (user?.role === "admin" || deleteReason.trim())) {
         if (user?.role === "admin") {
-          updateProgress("Removing purchase record...", 2, 4)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          updateProgress("Adjusting inventory...", 3, 4)
+          updateProgress("Removing purchase record...", 2, 3)
           await deletePurchase(deletingPurchase.id)
-          
-          updateProgress("Operation completed!", 4, 4)
-          await new Promise(resolve => setTimeout(resolve, 300))
-          
+          updateProgress("Operation completed!", 3, 3)
           toast({ title: "Success", description: "Purchase deleted successfully!", })
+          setDeletingPurchase(null)
+          setShowSuccessAlert(true)
+          setAlertMessage("Purchase deleted successfully!")
         } else {
-          updateProgress("Preparing deletion request...", 2, 3)
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
-          updateProgress("Submitting for approval...", 3, 3)
-          submitChange({ type: "purchase", action: "delete", entityId: deletingPurchase.id, originalData: { productName: deletingPurchase.productName, supplier: deletingPurchase.supplier, quantityPurchased: deletingPurchase.quantityPurchased, purchasePrice: deletingPurchase.purchasePrice, purchaseDate: deletingPurchase.purchaseDate }, proposedData: {}, requestedBy: user?.email || "", reason: deleteReason, })
+          updateProgress("Submitting for approval...", 2, 3)
+          submitChange({ 
+            type: "purchase", 
+            action: "delete", 
+            entityId: deletingPurchase.id, 
+            originalData: { 
+              productName: deletingPurchase.productName, 
+              supplier: deletingPurchase.supplier, 
+              quantityPurchased: deletingPurchase.quantityPurchased, 
+              purchasePrice: deletingPurchase.purchasePrice, 
+              purchaseDate: deletingPurchase.purchaseDate 
+            }, 
+            proposedData: {}, 
+            requestedBy: user?.email || "", 
+            reason: deleteReason, 
+          })
           toast({ title: "Submitted", description: "Purchase deletion submitted for admin approval." })
+          setDeletingPurchase(null)
+          setDeleteReason("")
         }
-        setIsDeleteDialogOpen(false)
-        setDeletingPurchase(null)
-        setDeleteReason("")
       } else if (user?.role !== "admin" && !deleteReason.trim()) {
         toast({ title: "Error", description: "Please provide a reason for deleting this purchase.", variant: "destructive" })
       }
@@ -422,7 +344,7 @@ export default function PurchasesPage() {
       )}
       {/* Success/Info Alert */}
       {showSuccessAlert && (
-        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4 mb-4">
           <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
           <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
         </Alert>

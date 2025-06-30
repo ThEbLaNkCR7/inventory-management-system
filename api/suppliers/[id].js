@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import Purchase from '../../models/Purchase.js'
+import Supplier from '../../models/Supplier.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 
@@ -42,43 +42,31 @@ export default async function handler(req, res) {
   await dbConnect()
   const { method } = req
   const { id } = req.query
-  
-  if (!id) {
-    return res.status(400).json({ message: 'Purchase ID required' })
-  }
-  
-  console.log(`API Request: ${method} /api/purchases/${id}`)
-  
   switch (method) {
     case 'GET':
       try {
-        const purchase = await Purchase.findById(id)
-        if (!purchase) return res.status(404).json({ message: 'Purchase not found' })
-        res.status(200).json(purchase)
+        const supplier = await Supplier.findById(id)
+        if (!supplier) return res.status(404).json({ message: 'Supplier not found' })
+        res.status(200).json(supplier)
       } catch (error) {
-        console.error("Get purchase error:", error)
         res.status(500).json({ message: 'Server error' })
       }
       break
     case 'PUT':
       try {
-        console.log(`Updating purchase ${id} with data:`, req.body)
-        const purchase = await Purchase.findByIdAndUpdate(id, req.body, { new: true, runValidators: true })
-        if (!purchase) return res.status(404).json({ message: 'Purchase not found' })
-        console.log(`Purchase updated successfully:`, purchase)
-        res.status(200).json(purchase)
+        const supplier = await Supplier.findByIdAndUpdate(id, req.body, { new: true, runValidators: true })
+        if (!supplier) return res.status(404).json({ message: 'Supplier not found' })
+        res.status(200).json(supplier)
       } catch (error) {
-        console.error("Update purchase error:", error)
         res.status(500).json({ message: 'Server error' })
       }
       break
     case 'DELETE':
       try {
-        const purchase = await Purchase.findByIdAndUpdate(id, { isActive: false }, { new: true })
-        if (!purchase) return res.status(404).json({ message: 'Purchase not found' })
-        res.status(200).json({ message: 'Purchase deleted successfully' })
+        const supplier = await Supplier.findByIdAndUpdate(id, { isActive: false }, { new: true })
+        if (!supplier) return res.status(404).json({ message: 'Supplier not found' })
+        res.status(200).json({ message: 'Supplier deleted successfully' })
       } catch (error) {
-        console.error("Delete purchase error:", error)
         res.status(500).json({ message: 'Server error' })
       }
       break

@@ -426,49 +426,18 @@ export default function ProductsPage() {
   }
 
   const handleDeleteConfirm = async () => {
-    // Close dialog immediately when delete is confirmed
     setIsDeleteDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
-    
     try {
+      toast({ title: "Processing...", description: "Validating deletion...", duration: 2000 })
+      updateProgress("Validating deletion...", 1, 3)
       if (user?.role === "admin") {
-        // Show live progress messages
-        toast({ 
-          title: "Processing...", 
-          description: "Validating deletion request...",
-          duration: 2000
-        })
-        
-        updateProgress("Validating deletion request...", 1, 4)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Removing from database...",
-          duration: 2000
-        })
-        
-        updateProgress("Removing from database...", 2, 4)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Updating inventory...",
-          duration: 2000
-        })
-        
-        updateProgress("Updating inventory...", 3, 4)
+        updateProgress("Removing from database...", 2, 3)
         await deleteProduct(deletingProduct.id)
-        
-        updateProgress("Operation completed!", 4, 4)
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
+        updateProgress("Operation completed!", 3, 3)
         toast({ title: "Success", description: "Product deleted successfully!", })
         setDeletingProduct(null)
-        
-        // Add notification
         addNotification({
           type: 'warning',
           title: 'Product Deleted',
@@ -477,34 +446,12 @@ export default function ProductsPage() {
           entityId: deletingProduct.id,
           entityType: 'product'
         })
-        
-        // Force refresh the data in the background
-        refreshData().catch(err => {
-          console.error("Failed to refresh data:", err)
-        })
+        await refreshData()
       } else {
-        toast({ 
-          title: "Processing...", 
-          description: "Preparing deletion request...",
-          duration: 2000
-        })
-        
-        updateProgress("Preparing deletion request...", 2, 3)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        toast({ 
-          title: "Processing...", 
-          description: "Submitting for approval...",
-          duration: 2000
-        })
-        
-        updateProgress("Submitting for approval...", 3, 3)
+        updateProgress("Submitting for approval...", 2, 3)
         submitChange({ type: "product", action: "delete", entityId: deletingProduct.id, originalData: deletingProduct, proposedData: { deleted: true }, requestedBy: user?.email || "", reason: `Request to delete product: ${deletingProduct.name}` })
-        
         toast({ title: "Submitted", description: "Product deletion submitted for approval!" })
         setDeletingProduct(null)
-        
-        // Add notification for deletion request
         addNotification({
           type: 'info',
           title: 'Deletion Approval Request',
@@ -517,8 +464,6 @@ export default function ProductsPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to delete product."
       toast({ title: "Error", description: errorMessage, variant: "destructive" })
-      
-      // Add error notification
       addNotification({
         type: 'error',
         title: 'Product Deletion Failed',
@@ -573,7 +518,7 @@ export default function ProductsPage() {
       )}
       {/* Success/Info Alert */}
       {showSuccessAlert && (
-        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+        <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20 p-4 mb-4">
           <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
           <AlertDescription className="text-green-800 dark:text-green-200">{alertMessage}</AlertDescription>
         </Alert>
@@ -598,7 +543,7 @@ export default function ProductsPage() {
                 Add Product
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+            <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 sm:p-6">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200">
                   Add New Product
@@ -804,7 +749,7 @@ export default function ProductsPage() {
 
       {/* Edit Product Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200">
               Edit Product
@@ -1112,7 +1057,7 @@ export default function ProductsPage() {
 
       {/* View Product Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 sm:p-6">
           <DialogHeader className="pb-6">
             <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
@@ -1308,7 +1253,7 @@ export default function ProductsPage() {
 
       {/* Delete Product Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] max-w-md max-h-[85vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <Trash2 className="h-5 w-5" />
@@ -1364,7 +1309,7 @@ export default function ProductsPage() {
 
       {/* Product Transaction History Dialog */}
       <Dialog open={isTransactionHistoryOpen} onOpenChange={setIsTransactionHistoryOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+        <DialogContent className="w-[95vw] max-w-6xl max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 sm:p-6">
           <DialogHeader className="pb-6">
             <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
               <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
@@ -1642,7 +1587,7 @@ export default function ProductsPage() {
 
       {/* Category Transaction History Dialog */}
       <Dialog open={isCategoryHistoryOpen} onOpenChange={setIsCategoryHistoryOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+        <DialogContent className="w-[95vw] max-w-6xl max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 sm:p-6">
           <DialogHeader className="pb-6">
             <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
@@ -1981,7 +1926,7 @@ export default function ProductsPage() {
 
       {/* Supplier Transaction History Dialog */}
       <Dialog open={isSupplierHistoryOpen} onOpenChange={setIsSupplierHistoryOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+        <DialogContent className="w-[95vw] max-w-6xl max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 sm:p-6">
           <DialogHeader className="pb-6">
             <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
               <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
@@ -2105,7 +2050,7 @@ export default function ProductsPage() {
 
       {/* Client Transaction History Dialog */}
       <Dialog open={isClientHistoryOpen} onOpenChange={setIsClientHistoryOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700">
+        <DialogContent className="w-[95vw] max-w-6xl max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-800 border dark:border-gray-700 p-4 sm:p-6">
           <DialogHeader className="pb-6">
             <DialogTitle className="text-2xl font-bold text-gray-800 dark:text-gray-200 flex items-center space-x-3">
               <div className="p-2 bg-teal-100 dark:bg-teal-900/20 rounded-lg">

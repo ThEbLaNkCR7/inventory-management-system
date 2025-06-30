@@ -54,21 +54,10 @@ export default function DepartmentsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
-    setIsAddDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
     
     try {
-      // Show live progress messages
-      toast({ 
-        title: "Processing...", 
-        description: "Validating department data...",
-        duration: 2000
-      })
-      
       updateProgress("Validating department data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
@@ -78,46 +67,28 @@ export default function DepartmentsPage() {
         employeeCount: getEmployeeCount(formData.name),
       }
 
-      toast({ 
-        title: "Processing...", 
-        description: "Processing department data...",
-        duration: 2000
-      })
-      
       updateProgress("Processing department data...", 2, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
 
       if (editingDepartment) {
-        toast({ 
-          title: "Processing...", 
-          description: "Updating department in database...",
-          duration: 2000
-        })
-        
         updateProgress("Updating department in database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        await updateDepartment(editingDepartment.id, departmentData)
+        updateDepartment(editingDepartment.id, departmentData)
         setEditingDepartment(null)
       } else {
-        toast({ 
-          title: "Processing...", 
-          description: "Adding department to database...",
-          duration: 2000
-        })
-        
         updateProgress("Adding department to database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        await addDepartment(departmentData)
+        addDepartment(departmentData)
       }
       
       updateProgress("Operation completed!", 4, 4)
       await new Promise(resolve => setTimeout(resolve, 300))
       
-      resetForm()
-      
       toast({ title: "Success", description: editingDepartment ? "Department updated successfully!" : "Department added successfully!" })
+      resetForm()
+      setIsAddDialogOpen(false)
       setShowSuccessAlert(true)
       setAlertMessage(editingDepartment ? "Department updated successfully!" : "Department added successfully!")
     } catch (err) {

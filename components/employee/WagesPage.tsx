@@ -92,21 +92,10 @@ export default function WagesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Close form immediately when submit is clicked
-    setIsAddDialogOpen(false)
-    
     setIsLoading(true)
     setProgress(0)
     
     try {
-      // Show live progress messages
-      toast({ 
-        title: "Processing...", 
-        description: "Validating wage data...",
-        duration: 2000
-      })
-      
       updateProgress("Validating wage data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
@@ -134,46 +123,28 @@ export default function WagesPage() {
         notes: formData.notes
       }
 
-      toast({ 
-        title: "Processing...", 
-        description: "Processing wage data...",
-        duration: 2000
-      })
-      
       updateProgress("Processing wage data...", 2, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
 
       if (editingWage) {
-        toast({ 
-          title: "Processing...", 
-          description: "Updating wage record in database...",
-          duration: 2000
-        })
-        
         updateProgress("Updating wage record in database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        await updateWage(editingWage.id, wageData)
+        updateWage(editingWage.id, wageData)
         setEditingWage(null)
       } else {
-        toast({ 
-          title: "Processing...", 
-          description: "Adding wage record to database...",
-          duration: 2000
-        })
-        
         updateProgress("Adding wage record to database...", 3, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        await addWage(wageData)
+        addWage(wageData)
       }
       
       updateProgress("Operation completed!", 4, 4)
       await new Promise(resolve => setTimeout(resolve, 300))
       
-      resetForm()
-      
       toast({ title: "Success", description: editingWage ? "Wage record updated successfully!" : "Wage record added successfully!" })
+      resetForm()
+      setIsAddDialogOpen(false)
       setShowSuccessAlert(true)
       setAlertMessage(editingWage ? "Wage record updated successfully!" : "Wage record added successfully!")
     } catch (err) {

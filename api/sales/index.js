@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import Supplier from '../../models/Supplier.js'
+import Sale from '../../models/Sale.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 
@@ -41,24 +41,21 @@ async function dbConnect() {
 export default async function handler(req, res) {
   await dbConnect()
   const { method } = req
-  
   switch (method) {
     case 'GET':
       try {
-        const suppliers = await Supplier.find({ isActive: { $ne: false } })
-        res.status(200).json({ suppliers })
+        const sales = await Sale.find({ isActive: true })
+        res.status(200).json({ sales })
       } catch (error) {
-        console.error('GET suppliers error:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break
     case 'POST':
       try {
-        const supplier = new Supplier(req.body)
-        await supplier.save()
-        res.status(201).json(supplier)
+        const sale = new Sale(req.body)
+        await sale.save()
+        res.status(201).json(sale)
       } catch (error) {
-        console.error('POST supplier error:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break
