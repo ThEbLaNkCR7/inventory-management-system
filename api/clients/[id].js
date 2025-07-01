@@ -128,7 +128,7 @@ export default async function handler(req, res) {
       break
     case 'DELETE':
       try {
-        const client = await Client.findByIdAndUpdate(id, { isActive: false }, { new: true })
+        const client = await Client.findByIdAndDelete(id)
         if (!client) return res.status(404).json({ message: 'Client not found' })
         res.status(200).json({ message: 'Client deleted successfully' })
       } catch (error) {

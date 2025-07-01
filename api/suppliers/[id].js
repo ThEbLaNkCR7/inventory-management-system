@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       break
     case 'DELETE':
       try {
-        const supplier = await Supplier.findByIdAndUpdate(id, { isActive: false }, { new: true })
+        const supplier = await Supplier.findByIdAndDelete(id)
         if (!supplier) return res.status(404).json({ message: 'Supplier not found' })
         res.status(200).json({ message: 'Supplier deleted successfully' })
       } catch (error) {

@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Fallback users if API is not available (for development only)
 const fallbackUsers = [
-  { id: "1", email: "admin@sheelwaterproofing.com", password: "loltheblank@CR7", name: "Admin User", role: "admin" as const },
+  { id: "1", email: "admin@sheelwaterproofing.com", password: "loltheblank@ronaldoasaurav2", name: "Admin User", role: "admin" as const },
   { id: "2", email: "user@sheelwaterproofing.com", password: "user@sheel", name: "Regular User", role: "user" as const },
 ]
 

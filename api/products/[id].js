@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       break
     case 'DELETE':
       try {
-        const product = await Product.findByIdAndUpdate(id, { isActive: false }, { new: true })
+        const product = await Product.findByIdAndDelete(id)
         if (!product) return res.status(404).json({ message: 'Product not found' })
         res.status(200).json({ message: 'Product deleted successfully' })
       } catch (error) {
