@@ -12,6 +12,7 @@ export interface Product {
   category: string
   stockQuantity: number
   unitPrice: number
+  netWeight?: number
   supplier: string
   createdAt: string
   batchId?: string

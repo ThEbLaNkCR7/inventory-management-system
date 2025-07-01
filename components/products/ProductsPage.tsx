@@ -59,6 +59,7 @@ export default function ProductsPage() {
     category: "",
     stockQuantity: 0,
     unitPrice: 0,
+    netWeight: 0,
     supplier: "",
     stockType: "new" as "new" | "old",
     lowStockThreshold: 5,
@@ -85,6 +86,18 @@ export default function ProductsPage() {
   const [isClientHistoryOpen, setIsClientHistoryOpen] = useState(false)
   const [selectedSupplierForHistory, setSelectedSupplierForHistory] = useState<string>("")
   const [selectedClientForHistory, setSelectedClientForHistory] = useState<string>("")
+  const [customNetWeight, setCustomNetWeight] = useState(0)
+  const uniqueNetWeights = useMemo(() => {
+    const weights = products.map((p) => p.netWeight).filter((w) => typeof w === "number" && !isNaN(w))
+    return Array.from(new Set(weights)).sort((a, b) => (a as number) - (b as number)) as number[]
+  }, [products])
+  const handleNetWeightChange = (value: string) => {
+    if (value === "custom") {
+      setFormData({ ...formData, netWeight: customNetWeight })
+    } else {
+      setFormData({ ...formData, netWeight: Number(value) })
+    }
+  }
 
   const categories = useMemo(() => [...new Set(products.map((p) => p.category))], [products])
 
@@ -114,6 +127,7 @@ export default function ProductsPage() {
       category: "",
       stockQuantity: 0,
       unitPrice: 0,
+      netWeight: 0,
       supplier: "",
       stockType: "new" as "new" | "old",
       lowStockThreshold: 5,
@@ -398,9 +412,10 @@ export default function ProductsPage() {
       category: product.category,
       stockQuantity: product.stockQuantity,
       unitPrice: product.unitPrice,
+      netWeight: product.netWeight || 0,
       supplier: product.supplier,
-      stockType: product.stockType || "new",
-      lowStockThreshold: (product as any).lowStockThreshold || 5,
+      stockType: product.stockType,
+      lowStockThreshold: product.lowStockThreshold,
     })
     setIsEditDialogOpen(true)
   }
@@ -702,6 +717,39 @@ export default function ProductsPage() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="netWeight">Net Weight (kg)</Label>
+                    <Select
+                      value={uniqueNetWeights.includes(formData.netWeight) ? String(formData.netWeight) : "custom"}
+                      onValueChange={handleNetWeightChange}
+                    >
+                      <SelectTrigger id="netWeight">
+                        <SelectValue placeholder="Select net weight" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {uniqueNetWeights.map((weight) => (
+                          <SelectItem key={weight} value={String(weight)}>{weight} kg</SelectItem>
+                        ))}
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {(!uniqueNetWeights.includes(formData.netWeight) || formData.netWeight === 0) && (
+                      <Input
+                        id="netWeight-custom"
+                        type="number"
+                        min={0}
+                        value={formData.netWeight}
+                        onChange={(e) => {
+                          setCustomNetWeight(Number(e.target.value) || 0)
+                          setFormData({ ...formData, netWeight: Number(e.target.value) || 0 })
+                        }}
+                        placeholder="Enter custom net weight"
+                      />
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
                     Cancel
@@ -908,6 +956,39 @@ export default function ProductsPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="edit-netWeight">Net Weight (kg)</Label>
+                <Select
+                  value={uniqueNetWeights.includes(formData.netWeight) ? String(formData.netWeight) : "custom"}
+                  onValueChange={handleNetWeightChange}
+                >
+                  <SelectTrigger id="edit-netWeight">
+                    <SelectValue placeholder="Select net weight" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {uniqueNetWeights.map((weight) => (
+                      <SelectItem key={weight} value={String(weight)}>{weight} kg</SelectItem>
+                    ))}
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(!uniqueNetWeights.includes(formData.netWeight) || formData.netWeight === 0) && (
+                  <Input
+                    id="edit-netWeight-custom"
+                    type="number"
+                    min={0}
+                    value={formData.netWeight}
+                    onChange={(e) => {
+                      setCustomNetWeight(Number(e.target.value) || 0)
+                      setFormData({ ...formData, netWeight: Number(e.target.value) || 0 })
+                    }}
+                    placeholder="Enter custom net weight"
+                  />
+                )}
+              </div>
+            </div>
+
             <div className="flex justify-end space-x-2 pt-4">
               <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
@@ -967,6 +1048,7 @@ export default function ProductsPage() {
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Category</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Stock</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Price (Rs)</TableHead>
+                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Net Weight (kg)</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1011,6 +1093,7 @@ export default function ProductsPage() {
                     <TableCell className="font-semibold text-slate-600 dark:text-slate-400">
                       Rs {product.unitPrice.toLocaleString()}
                     </TableCell>
+                    <TableCell>{product.netWeight ?? "-"}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button

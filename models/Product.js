@@ -62,6 +62,10 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    netWeight: {
+      type: Number,
+      min: 0,
+    },
   },
   {
     timestamps: true,

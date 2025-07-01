@@ -11,6 +11,8 @@ export default async function handler(req, res) {
 
     const { email, password } = req.body
 
+    console.log('Login attempt:', { email, password })
+
     // Validate input
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' })
@@ -18,6 +20,7 @@ export default async function handler(req, res) {
 
     // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() })
+    console.log('User found:', user)
     
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' })
@@ -30,6 +33,7 @@ export default async function handler(req, res) {
 
     // Verify password
     const isPasswordValid = await user.comparePassword(password)
+    console.log('Password valid:', isPasswordValid)
     
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid credentials' })

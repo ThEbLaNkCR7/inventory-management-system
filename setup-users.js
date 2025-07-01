@@ -42,25 +42,11 @@ const setupUsers = async () => {
     const testUsers = [
       {
         name: 'Admin User',
-        email: 'admin@example.com',
-        password: 'admin123',
+        email: 'admin@sheelwaterproofing.com',
+        password: 'loltheblank@ronaldosaurav2',
         role: 'admin',
         isActive: true
       },
-      {
-        name: 'Manager User',
-        email: 'manager@example.com',
-        password: 'manager123',
-        role: 'manager',
-        isActive: true
-      },
-      {
-        name: 'Employee User',
-        email: 'employee@example.com',
-        password: 'employee123',
-        role: 'employee',
-        isActive: true
-      }
     ]
 
     for (const userData of testUsers) {
@@ -81,7 +67,7 @@ const setupUsers = async () => {
 
     console.log('\nTest users created successfully!')
     console.log('\nLogin credentials:')
-    console.log('Admin: admin@example.com / admin123')
+    console.log('Admin: admin@sheelwaterproofing.com / loltheblank@ronaldosaurav2')
     console.log('Manager: manager@example.com / manager123')
     console.log('Employee: employee@example.com / employee123')
 

@@ -53,6 +53,7 @@ export default function SalesPage() {
     quantitySold: 0,
     salePrice: 0,
     saleDate: new Date().toISOString().split("T")[0],
+    netWeight: 0,
   })
   const [editReason, setEditReason] = useState("")
   const [deleteReason, setDeleteReason] = useState("")
@@ -62,6 +63,11 @@ export default function SalesPage() {
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState("")
   const [totalSteps, setTotalSteps] = useState(0)
+  const [customNetWeight, setCustomNetWeight] = useState(0)
+  const uniqueNetWeights = React.useMemo(() => {
+    const weights = products.map((p) => p.netWeight).filter((w) => typeof w === "number" && !isNaN(w))
+    return Array.from(new Set(weights)).sort((a, b) => (a as number) - (b as number)) as number[]
+  }, [products])
 
   useEffect(() => {
     if (showSuccessAlert) {
@@ -111,6 +117,7 @@ export default function SalesPage() {
       quantitySold: 0,
       salePrice: 0,
       saleDate: new Date().toISOString().split("T")[0],
+      netWeight: 0,
     })
     setEditReason("")
   }
@@ -195,6 +202,7 @@ export default function SalesPage() {
       quantitySold: sale.quantitySold,
       salePrice: sale.salePrice,
       saleDate: formattedDate,
+      netWeight: product?.netWeight ?? 0,
     })
     setIsEditDialogOpen(true)
   }
@@ -322,6 +330,23 @@ export default function SalesPage() {
       setCurrentStep("")
     }
   }
+
+  const handleNetWeightChange = (value: string) => {
+    if (value === "custom") {
+      setFormData({ ...formData, netWeight: customNetWeight })
+    } else {
+      setFormData({ ...formData, netWeight: Number(value) })
+    }
+  }
+
+  React.useEffect(() => {
+    if (formData.productId) {
+      const product = products.find((p) => p.id === formData.productId)
+      if (product && typeof product.netWeight === "number") {
+        setFormData((prev) => ({ ...prev, netWeight: product.netWeight ?? 0 }))
+      }
+    }
+  }, [formData.productId, products])
 
   return (
     <div className="space-y-6 p-6 min-h-screen transition-colors duration-300">
@@ -501,6 +526,36 @@ export default function SalesPage() {
                     onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="netWeight">Net Weight (kg)</Label>
+                  <Select
+                    value={uniqueNetWeights.includes(formData.netWeight) ? String(formData.netWeight) : "custom"}
+                    onValueChange={handleNetWeightChange}
+                  >
+                    <SelectTrigger id="netWeight">
+                      <SelectValue placeholder="Select net weight" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {uniqueNetWeights.map((weight) => (
+                        <SelectItem key={weight} value={String(weight)}>{weight} kg</SelectItem>
+                      ))}
+                      <SelectItem value="custom">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {(!uniqueNetWeights.includes(formData.netWeight) || formData.netWeight === 0) && (
+                    <Input
+                      id="netWeight-custom"
+                      type="number"
+                      min={0}
+                      value={formData.netWeight}
+                      onChange={(e) => {
+                        setCustomNetWeight(Number(e.target.value) || 0)
+                        setFormData({ ...formData, netWeight: Number(e.target.value) || 0 })
+                      }}
+                      placeholder="Enter custom net weight"
+                    />
+                  )}
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
@@ -1079,6 +1134,36 @@ export default function SalesPage() {
                 onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
                 required
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="netWeight">Net Weight (kg)</Label>
+              <Select
+                value={uniqueNetWeights.includes(formData.netWeight) ? String(formData.netWeight) : "custom"}
+                onValueChange={handleNetWeightChange}
+              >
+                <SelectTrigger id="netWeight">
+                  <SelectValue placeholder="Select net weight" />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueNetWeights.map((weight) => (
+                    <SelectItem key={weight} value={String(weight)}>{weight} kg</SelectItem>
+                  ))}
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {(!uniqueNetWeights.includes(formData.netWeight) || formData.netWeight === 0) && (
+                <Input
+                  id="netWeight-custom"
+                  type="number"
+                  min={0}
+                  value={formData.netWeight}
+                  onChange={(e) => {
+                    setCustomNetWeight(Number(e.target.value) || 0)
+                    setFormData({ ...formData, netWeight: Number(e.target.value) || 0 })
+                  }}
+                  placeholder="Enter custom net weight"
+                />
+              )}
             </div>
             <div className="flex justify-end space-x-2">
               <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>

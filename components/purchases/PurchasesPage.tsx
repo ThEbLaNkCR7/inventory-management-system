@@ -53,6 +53,7 @@ export default function PurchasesPage() {
     quantityPurchased: 0,
     purchasePrice: 0,
     purchaseDate: new Date().toISOString().split("T")[0],
+    netWeight: 0,
   })
   const [editReason, setEditReason] = useState("")
   const [deleteReason, setDeleteReason] = useState("")
@@ -62,6 +63,11 @@ export default function PurchasesPage() {
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState("")
   const [totalSteps, setTotalSteps] = useState(0)
+  const [customNetWeight, setCustomNetWeight] = useState(0)
+  const uniqueNetWeights = React.useMemo(() => {
+    const weights = products.map((p) => p.netWeight).filter((w) => typeof w === "number" && !isNaN(w))
+    return Array.from(new Set(weights)).sort((a, b) => (a as number) - (b as number)) as number[]
+  }, [products])
 
   useEffect(() => {
     if (showSuccessAlert) {
@@ -111,6 +117,7 @@ export default function PurchasesPage() {
       quantityPurchased: 0,
       purchasePrice: 0,
       purchaseDate: new Date().toISOString().split("T")[0],
+      netWeight: 0,
     })
     setEditReason("")
   }
@@ -190,6 +197,7 @@ export default function PurchasesPage() {
       quantityPurchased: purchase.quantityPurchased,
       purchasePrice: purchase.purchasePrice,
       purchaseDate: formattedDate,
+      netWeight: product?.netWeight ?? 0,
     })
     setIsEditDialogOpen(true)
   }
@@ -314,6 +322,15 @@ export default function PurchasesPage() {
       setCurrentStep("")
     }
   }
+
+  React.useEffect(() => {
+    if (formData.productId) {
+      const product = products.find((p) => p.id === formData.productId)
+      if (product && typeof product.netWeight === "number") {
+        setFormData((prev) => ({ ...prev, netWeight: product.netWeight ?? 0 }))
+      }
+    }
+  }, [formData.productId, products])
 
   return (
     <div className="space-y-6 p-6 min-h-screen transition-colors duration-300">
