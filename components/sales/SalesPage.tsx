@@ -439,7 +439,7 @@ export default function SalesPage() {
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name} (Stock: {product.stockQuantity})
+                          {product.name} (Units: {product.stockQuantity}, Unit Weight: {product.netWeight ?? '-'} kg, Total Weight: {product.netWeight && product.stockQuantity ? (product.netWeight * product.stockQuantity).toFixed(2) : '-'} kg)
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -904,7 +904,7 @@ export default function SalesPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Product</Label>
-                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingSale.productName}</p>
+                    <p className="text-gray-900 dark:text-gray-100 font-medium text-base">{viewingSale.productName} (Units: {viewingSale.stockQuantity}, Unit Weight: {viewingSale.netWeight ?? '-'} kg, Total Weight: {viewingSale.netWeight && viewingSale.stockQuantity ? (viewingSale.netWeight * viewingSale.stockQuantity).toFixed(2) : '-'} kg)</p>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Client</Label>
@@ -1049,7 +1049,7 @@ export default function SalesPage() {
                 <SelectContent>
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.name} (Stock: {product.stockQuantity})
+                      {product.name} (Units: {product.stockQuantity}, Unit Weight: {product.netWeight ?? '-'} kg, Total Weight: {product.netWeight && product.stockQuantity ? (product.netWeight * product.stockQuantity).toFixed(2) : '-'} kg)
                     </SelectItem>
                   ))}
                 </SelectContent>

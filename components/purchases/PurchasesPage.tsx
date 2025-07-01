@@ -1199,6 +1199,14 @@ export default function PurchasesPage() {
                       <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Unit Price</Label>
                       <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">Rs {selectedProduct.unitPrice.toLocaleString()}</p>
                     </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Unit Weight</Label>
+                      <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">Unit Weight: {selectedProduct.netWeight ?? '-'} kg</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Total Weight</Label>
+                      <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">Total Weight: {selectedProduct.netWeight && selectedProduct.stockQuantity ? (selectedProduct.netWeight * selectedProduct.stockQuantity).toFixed(2) : '-'} kg</p>
+                    </div>
                   </div>
                 </div>
 

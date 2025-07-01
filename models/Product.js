@@ -76,6 +76,7 @@ const productSchema = new mongoose.Schema(
 productSchema.index({ name: "text", hsCode: "text", description: "text" })
 productSchema.index({ category: 1 })
 productSchema.index({ stockQuantity: 1 })
+productSchema.index({ hsCode: 1, category: 1 }, { unique: true, partialFilterExpression: { hsCode: { $type: "string", $ne: null, $ne: "" }, category: { $type: "string", $ne: null, $ne: "" } } })
 
 // Virtual for stock status
 productSchema.virtual("stockStatus").get(function () {

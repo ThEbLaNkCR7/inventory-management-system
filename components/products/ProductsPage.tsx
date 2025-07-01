@@ -504,6 +504,18 @@ export default function ProductsPage() {
     setIsClientHistoryOpen(true)
   }
 
+  const [customProductName, setCustomProductName] = useState("")
+  const uniqueProductNames = useMemo(() => {
+    return Array.from(new Set(products.map((p) => p.name).filter(Boolean))).sort()
+  }, [products])
+  const handleProductNameChange = (value: string) => {
+    if (value === "custom") {
+      setFormData({ ...formData, name: customProductName })
+    } else {
+      setFormData({ ...formData, name: value })
+    }
+  }
+
   return (
     <div className="space-y-8 p-6 bg-white dark:bg-gray-900 min-h-screen transition-colors duration-300">
       {isLoading && (
@@ -578,16 +590,33 @@ export default function ProductsPage() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Product Name
-                    </Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                      required
-                    />
+                    <Label htmlFor="productName">Product Name</Label>
+                    <Select
+                      value={uniqueProductNames.includes(formData.name) ? formData.name : "custom"}
+                      onValueChange={handleProductNameChange}
+                    >
+                      <SelectTrigger id="productName">
+                        <SelectValue placeholder="Select product name" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {uniqueProductNames.map((name) => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ))}
+                        <SelectItem value="custom">Custom</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {(!uniqueProductNames.includes(formData.name) || formData.name === "") && (
+                      <Input
+                        id="productName-custom"
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => {
+                          setCustomProductName(e.target.value)
+                          setFormData({ ...formData, name: e.target.value })
+                        }}
+                        placeholder="Enter custom product name"
+                      />
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="hsCode" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -817,16 +846,33 @@ export default function ProductsPage() {
           <form onSubmit={handleEditSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="edit-name" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Product Name
-                </Label>
-                <Input
-                  id="edit-name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                  required
-                />
+                <Label htmlFor="edit-productName">Product Name</Label>
+                <Select
+                  value={uniqueProductNames.includes(formData.name) ? formData.name : "custom"}
+                  onValueChange={handleProductNameChange}
+                >
+                  <SelectTrigger id="edit-productName">
+                    <SelectValue placeholder="Select product name" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {uniqueProductNames.map((name) => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ))}
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(!uniqueProductNames.includes(formData.name) || formData.name === "") && (
+                  <Input
+                    id="edit-productName-custom"
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => {
+                      setCustomProductName(e.target.value)
+                      setFormData({ ...formData, name: e.target.value })
+                    }}
+                    placeholder="Enter custom product name"
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-hsCode" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -1046,9 +1092,9 @@ export default function ProductsPage() {
                 <TableRow className="bg-gray-50 dark:bg-gray-700">
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Product Name</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Category</TableHead>
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Stock</TableHead>
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Price (Rs)</TableHead>
-                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Net Weight (kg)</TableHead>
+                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Number of units</TableHead>
+                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Weight (kg)</TableHead>
+                  <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Unit Price (Rs)</TableHead>
                   <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1059,26 +1105,20 @@ export default function ProductsPage() {
                     className="hover:bg-slate-50/50 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     <TableCell>
-                      <div className="space-y-1">
-                        <p 
-                          className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                          onClick={() => handleProductClick(product)}
-                        >
-                          {product.name}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{product.description}</p>
-                      </div>
+                      <p 
+                        className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        onClick={() => handleProductClick(product)}
+                      >
+                        {product.name}
+                      </p>
                     </TableCell>
                     <TableCell>
-                      <div className="space-y-1">
-                        <p 
-                          className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                          onClick={() => handleProductClick(product)}
-                        >
-                          {product.category}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{product.description}</p>
-                      </div>
+                      <p 
+                        className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        onClick={() => handleProductClick(product)}
+                      >
+                        {product.category}
+                      </p>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
@@ -1090,10 +1130,8 @@ export default function ProductsPage() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-semibold text-slate-600 dark:text-slate-400">
-                      Rs {product.unitPrice.toLocaleString()}
-                    </TableCell>
                     <TableCell>{product.netWeight ?? "-"}</TableCell>
+                    <TableCell>{product.unitPrice ? `Rs ${product.unitPrice.toLocaleString()}` : '-'}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button

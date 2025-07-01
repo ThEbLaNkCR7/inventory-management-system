@@ -139,7 +139,8 @@ export default function StockViewPage() {
                       <TableHead>Product</TableHead>
                       <TableHead>SKU</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Stock</TableHead>
+                      <TableHead title="Number of units in stock">Units</TableHead>
+                      <TableHead title="Weight of a single unit">Unit Weight (kg)</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Batch</TableHead>
                       <TableHead>Last Restocked</TableHead>
@@ -166,6 +167,7 @@ export default function StockViewPage() {
                             </span>
                           </div>
                         </TableCell>
+                        <TableCell>{product.netWeight ?? "-"}</TableCell>
                         <TableCell>Rs {product.unitPrice.toFixed(2)}</TableCell>
                         <TableCell>
                           {product.batchNumber ? (
@@ -202,7 +204,8 @@ export default function StockViewPage() {
                       <TableHead>Product</TableHead>
                       <TableHead>SKU</TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead>Stock</TableHead>
+                      <TableHead title="Number of units in stock">Units</TableHead>
+                      <TableHead title="Weight of a single unit">Unit Weight (kg)</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Batch</TableHead>
                       <TableHead>Last Restocked</TableHead>
@@ -229,6 +232,7 @@ export default function StockViewPage() {
                             </span>
                           </div>
                         </TableCell>
+                        <TableCell>{product.netWeight ?? "-"}</TableCell>
                         <TableCell>Rs {product.unitPrice.toFixed(2)}</TableCell>
                         <TableCell>
                           {product.batchNumber ? (
