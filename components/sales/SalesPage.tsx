@@ -1,9 +1,10 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
+import { useInventory } from "@/contexts/InventoryContext"
 import { useApproval } from "@/contexts/ApprovalContext"
+import { usePersistentForm } from "@/contexts/FormPersistenceContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +27,7 @@ import { Plus, Search, Edit, Trash2, CheckCircle, AlertTriangle, Clock, Loader2,
 import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { Progress } from "@/components/ui/progress"
+import { MaterialDatePicker } from "@/components/ui/MaterialDatePicker"
 
 export default function SalesPage() {
   const { user } = useAuth()
@@ -45,7 +47,7 @@ export default function SalesPage() {
   const [deletingSale, setDeletingSale] = useState<any>(null)
   const [viewingSale, setViewingSale] = useState<any>(null)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     productId: "",
     client: "",
     clientType: "Company", // Default to Company
@@ -54,7 +56,9 @@ export default function SalesPage() {
     salePrice: 0,
     saleDate: new Date().toISOString().split("T")[0],
     netWeight: 0,
-  })
+  }
+
+  const { formData, updateForm, resetForm } = usePersistentForm('sales-form', initialFormData)
   const [editReason, setEditReason] = useState("")
   const [deleteReason, setDeleteReason] = useState("")
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
@@ -64,10 +68,40 @@ export default function SalesPage() {
   const [currentStep, setCurrentStep] = useState("")
   const [totalSteps, setTotalSteps] = useState(0)
   const [customNetWeight, setCustomNetWeight] = useState(0)
+  const [productFilter, setProductFilter] = useState("all")
+  const [weightFilter, setWeightFilter] = useState("all")
+  
   const uniqueNetWeights = React.useMemo(() => {
     const weights = products.map((p) => p.netWeight).filter((w) => typeof w === "number" && !isNaN(w))
     return Array.from(new Set(weights)).sort((a, b) => (a as number) - (b as number)) as number[]
   }, [products])
+
+  // Get unique product names
+  const uniqueProductNames = React.useMemo(() => {
+    return Array.from(new Set(products.map(p => p.name)))
+  }, [products])
+
+  // Check if selected product has multiple weights
+  const selectedProductWeights = React.useMemo(() => {
+    if (!formData.productId) return []
+    const selectedProduct = products.find(p => p.id === formData.productId)
+    if (!selectedProduct) return []
+    
+    const productVariants = products.filter(p => p.name === selectedProduct.name)
+    const weights = productVariants.map(p => p.netWeight).filter(w => typeof w === "number" && !isNaN(w))
+    return Array.from(new Set(weights)).sort((a, b) => (a as number) - (b as number)) as number[]
+  }, [products, formData.productId])
+
+  // Get all products for selection
+  const filteredProducts = React.useMemo(() => {
+    return products
+  }, [products])
+
+  // Get selected product for weight display
+  const selectedProductForWeightDisplay = React.useMemo(() => {
+    if (!formData.productId) return null
+    return products.find(p => p.id === formData.productId)
+  }, [products, formData.productId])
 
   useEffect(() => {
     if (showSuccessAlert) {
@@ -108,18 +142,10 @@ export default function SalesPage() {
 
   const salesCounts = getSalesCounts()
 
-  const resetForm = () => {
-    setFormData({
-      productId: "",
-      client: "",
-      clientType: "Company",
-      customClient: "",
-      quantitySold: 0,
-      salePrice: 0,
-      saleDate: new Date().toISOString().split("T")[0],
-      netWeight: 0,
-    })
+  const clearForm = () => {
+    resetForm()
     setEditReason("")
+    setIsAddDialogOpen(false)
   }
 
   const showAlert = (message: string, isSuccess = true) => {
@@ -194,7 +220,7 @@ export default function SalesPage() {
     // Convert date to YYYY-MM-DD format for HTML date input
     const formattedDate = new Date(sale.saleDate).toISOString().split('T')[0]
     
-    setFormData({
+    updateForm({
       productId: product?.id || "",
       client: sale.client,
       clientType: sale.clientType,
@@ -333,9 +359,9 @@ export default function SalesPage() {
 
   const handleNetWeightChange = (value: string) => {
     if (value === "custom") {
-      setFormData({ ...formData, netWeight: customNetWeight })
+      updateForm({ netWeight: customNetWeight })
     } else {
-      setFormData({ ...formData, netWeight: Number(value) })
+      updateForm({ netWeight: Number(value) })
     }
   }
 
@@ -343,7 +369,7 @@ export default function SalesPage() {
     if (formData.productId) {
       const product = products.find((p) => p.id === formData.productId)
       if (product && typeof product.netWeight === "number") {
-        setFormData((prev) => ({ ...prev, netWeight: product.netWeight ?? 0 }))
+        updateForm({ netWeight: product.netWeight ?? 0 })
       }
     }
   }, [formData.productId, products])
@@ -428,29 +454,81 @@ export default function SalesPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="product">Product *</Label>
+                  {/* Product Name Group Dropdown */}
+                  <Select
+                    value={productFilter}
+                    onValueChange={(value) => {
+                      setProductFilter(value)
+                      // Reset productId and netWeight when group changes
+                      updateForm({ productId: "", netWeight: 0 })
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by product name" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Products</SelectItem>
+                      {uniqueProductNames.map((name) => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {/* Main Product Dropdown */}
                   <Select
                     value={formData.productId}
-                    onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                    onValueChange={(value) => {
+                      updateForm({ productId: value })
+                      // Reset net weight when product changes
+                      updateForm({ netWeight: 0 })
+                    }}
                     required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
                     <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} (Units: {product.stockQuantity}, Unit Weight: {product.netWeight ?? '-'} kg, Total Weight: {product.netWeight && product.stockQuantity ? (product.netWeight * product.stockQuantity).toFixed(2) : '-'} kg)
-                        </SelectItem>
-                      ))}
+                      {filteredProducts
+                        .filter(product => productFilter === "all" || product.name === productFilter)
+                        .map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{product.name}</span>
+                              <span className="text-sm text-gray-500">Stock: {product.stockQuantity}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {/* Net Weight Selection - Only show if product is selected and has multiple weights */}
+                {formData.productId && selectedProductWeights.length > 1 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="netWeight">Net Weight (kg) *</Label>
+                    <Select
+                      value={String(formData.netWeight)}
+                      onValueChange={(value) => updateForm({ netWeight: Number(value) })}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select net weight" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedProductWeights.map((weight) => (
+                          <SelectItem key={weight} value={String(weight)}>
+                            {weight} kg
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="client">Client *</Label>
                   <div className="space-y-2">
                     <Select
                       value={formData.client}
-                      onValueChange={(value) => setFormData({ ...formData, client: value })}
+                      onValueChange={(value) => updateForm({ ...formData, client: value })}
                       required
                     >
                       <SelectTrigger>
@@ -469,7 +547,7 @@ export default function SalesPage() {
                       <Input
                         placeholder="Enter custom client name"
                         value={formData.customClient || ""}
-                        onChange={(e) => setFormData({ ...formData, customClient: e.target.value })}
+                        onChange={(e) => updateForm({ ...formData, customClient: e.target.value })}
                         className="mt-2"
                         required
                       />
@@ -480,7 +558,7 @@ export default function SalesPage() {
                   <Label htmlFor="clientType">Client Type *</Label>
                   <Select
                     value={formData.clientType}
-                    onValueChange={(value) => setFormData({ ...formData, clientType: value })}
+                    onValueChange={(value) => updateForm({ ...formData, clientType: value })}
                     required
                   >
                     <SelectTrigger>
@@ -500,7 +578,7 @@ export default function SalesPage() {
                       type="number"
                       min="1"
                       value={formData.quantitySold}
-                      onChange={(e) => setFormData({ ...formData, quantitySold: Number.parseInt(e.target.value) || 0 })}
+                      onChange={(e) => updateForm({ ...formData, quantitySold: Number.parseInt(e.target.value) || 0 })}
                       required
                     />
                   </div>
@@ -512,53 +590,21 @@ export default function SalesPage() {
                       step="0.01"
                       min="0"
                       value={formData.salePrice}
-                      onChange={(e) => setFormData({ ...formData, salePrice: Number.parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => updateForm({ ...formData, salePrice: Number.parseFloat(e.target.value) || 0 })}
                       required
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="date">Sale Date *</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.saleDate}
-                    onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
-                    required
+                  <MaterialDatePicker
+                    value={formData.saleDate ? new Date(formData.saleDate) : undefined}
+                    onChange={date => updateForm({ ...formData, saleDate: date ? date.toISOString().split("T")[0] : "" })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="netWeight">Net Weight (kg)</Label>
-                  <Select
-                    value={uniqueNetWeights.includes(formData.netWeight) ? String(formData.netWeight) : "custom"}
-                    onValueChange={handleNetWeightChange}
-                  >
-                    <SelectTrigger id="netWeight">
-                      <SelectValue placeholder="Select net weight" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {uniqueNetWeights.map((weight) => (
-                        <SelectItem key={weight} value={String(weight)}>{weight} kg</SelectItem>
-                      ))}
-                      <SelectItem value="custom">Custom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {(!uniqueNetWeights.includes(formData.netWeight) || formData.netWeight === 0) && (
-                    <Input
-                      id="netWeight-custom"
-                      type="number"
-                      min={0}
-                      value={formData.netWeight}
-                      onChange={(e) => {
-                        setCustomNetWeight(Number(e.target.value) || 0)
-                        setFormData({ ...formData, netWeight: Number(e.target.value) || 0 })
-                      }}
-                      placeholder="Enter custom net weight"
-                    />
-                  )}
-                </div>
+
                 <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button type="button" variant="neutralOutline" onClick={clearForm}>
                     Cancel
                   </Button>
                   <Button type="submit">
@@ -1040,26 +1086,56 @@ export default function SalesPage() {
               <Label htmlFor="edit-product">Product *</Label>
               <Select
                 value={formData.productId}
-                onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                onValueChange={(value) => {
+                  updateForm({ productId: value })
+                  // Reset net weight when product changes
+                  updateForm({ netWeight: 0 })
+                }}
                 required
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select product" />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map((product) => (
+                  {filteredProducts.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.name} (Units: {product.stockQuantity}, Unit Weight: {product.netWeight ?? '-'} kg, Total Weight: {product.netWeight && product.stockQuantity ? (product.netWeight * product.stockQuantity).toFixed(2) : '-'} kg)
+                      <div className="flex flex-col">
+                        <span className="font-medium">{product.name}</span>
+                        <span className="text-sm text-gray-500">Stock: {product.stockQuantity}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            
+            {/* Net Weight Selection - Only show if product is selected and has multiple weights */}
+            {formData.productId && selectedProductWeights.length > 1 && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-netWeight">Net Weight (kg) *</Label>
+                <Select
+                  value={String(formData.netWeight)}
+                  onValueChange={(value) => updateForm({ netWeight: Number(value) })}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select net weight" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedProductWeights.map((weight) => (
+                      <SelectItem key={weight} value={String(weight)}>
+                        {weight} kg
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="edit-client">Client *</Label>
               <Select
                 value={formData.client}
-                onValueChange={(value) => setFormData({ ...formData, client: value })}
+                onValueChange={(value) => updateForm({ ...formData, client: value })}
                 required
               >
                 <SelectTrigger>
@@ -1078,7 +1154,7 @@ export default function SalesPage() {
                 <Input
                   placeholder="Enter custom client name"
                   value={formData.customClient || ""}
-                  onChange={(e) => setFormData({ ...formData, customClient: e.target.value })}
+                  onChange={(e) => updateForm({ ...formData, customClient: e.target.value })}
                   className="mt-2"
                   required
                 />
@@ -1088,7 +1164,7 @@ export default function SalesPage() {
               <Label htmlFor="edit-clientType">Client Type *</Label>
               <Select
                 value={formData.clientType}
-                onValueChange={(value) => setFormData({ ...formData, clientType: value })}
+                onValueChange={(value) => updateForm({ ...formData, clientType: value })}
                 required
               >
                 <SelectTrigger>
@@ -1108,7 +1184,7 @@ export default function SalesPage() {
                   type="number"
                   min="1"
                   value={formData.quantitySold}
-                  onChange={(e) => setFormData({ ...formData, quantitySold: Number.parseInt(e.target.value) || 0 })}
+                  onChange={(e) => updateForm({ ...formData, quantitySold: Number.parseInt(e.target.value) || 0 })}
                   required
                 />
               </div>
@@ -1120,53 +1196,24 @@ export default function SalesPage() {
                   step="0.01"
                   min="0"
                   value={formData.salePrice}
-                  onChange={(e) => setFormData({ ...formData, salePrice: Number.parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => updateForm({ ...formData, salePrice: Number.parseFloat(e.target.value) || 0 })}
                   required
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-date">Sale Date *</Label>
-              <Input
-                id="edit-date"
-                type="date"
-                value={formData.saleDate}
-                onChange={(e) => setFormData({ ...formData, saleDate: e.target.value })}
-                required
+              <Label htmlFor="date">Sale Date *</Label>
+              <MaterialDatePicker
+                value={formData.saleDate ? new Date(formData.saleDate) : undefined}
+                onChange={date => updateForm({ ...formData, saleDate: date ? date.toISOString().split("T")[0] : "" })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="netWeight">Net Weight (kg)</Label>
-              <Select
-                value={uniqueNetWeights.includes(formData.netWeight) ? String(formData.netWeight) : "custom"}
-                onValueChange={handleNetWeightChange}
-              >
-                <SelectTrigger id="netWeight">
-                  <SelectValue placeholder="Select net weight" />
-                </SelectTrigger>
-                <SelectContent>
-                  {uniqueNetWeights.map((weight) => (
-                    <SelectItem key={weight} value={String(weight)}>{weight} kg</SelectItem>
-                  ))}
-                  <SelectItem value="custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
-              {(!uniqueNetWeights.includes(formData.netWeight) || formData.netWeight === 0) && (
-                <Input
-                  id="netWeight-custom"
-                  type="number"
-                  min={0}
-                  value={formData.netWeight}
-                  onChange={(e) => {
-                    setCustomNetWeight(Number(e.target.value) || 0)
-                    setFormData({ ...formData, netWeight: Number(e.target.value) || 0 })
-                  }}
-                  placeholder="Enter custom net weight"
-                />
-              )}
-            </div>
+
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button type="button" variant="neutralOutline" onClick={() => {
+                clearForm()
+                setIsEditDialogOpen(false)
+              }}>
                 Cancel
               </Button>
               <Button type="submit">{user?.role === "admin" ? "Update Sale" : "Submit Changes"}</Button>

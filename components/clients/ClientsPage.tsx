@@ -4,8 +4,8 @@ import type React from "react"
 
 import { useState } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
-import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
+import { usePersistentForm } from "@/contexts/FormPersistenceContext"
 import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,7 +34,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
 
 export default function ClientsPage() {
-  const { user } = useAuth()
   const { 
     clients, 
     addClient, 
@@ -57,7 +56,7 @@ export default function ClientsPage() {
   const [editingClient, setEditingClient] = useState<any>(null)
   const [viewingClient, setViewingClient] = useState<any>(null)
   const [deletingClient, setDeletingClient] = useState<any>(null)
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     name: "",
     email: "",
     phone: "",
@@ -65,7 +64,9 @@ export default function ClientsPage() {
     customCompany: "",
     address: "",
     status: "Active",
-  })
+  }
+
+  const { formData, updateForm, resetForm } = usePersistentForm('clients-form', initialFormData)
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -117,16 +118,9 @@ export default function ClientsPage() {
     return addressParts.length > 0 ? addressParts.join(', ') : 'Address not available'
   }
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      company: "",
-      customCompany: "",
-      address: "",
-      status: "Active",
-    })
+  const clearForm = () => {
+    resetForm()
+    setIsAddDialogOpen(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,47 +133,39 @@ export default function ClientsPage() {
       updateProgress("Validating client data...", 1, 4)
       await new Promise(resolve => setTimeout(resolve, 500))
       
-      if (user?.role === "admin") {
-        updateProgress("Adding client to database...", 2, 4)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        updateProgress("Setting up client profile...", 3, 4)
-        const companyName = formData.company === "custom" ? formData.customCompany : formData.company
-        const { customCompany, ...clientData } = formData
-        await addClient({ 
-          ...clientData, 
-          company: companyName,
-          address: {
-            street: formData.address,
-            city: "",
-            state: "",
-            zipCode: "",
-            country: "",
-          },
-          taxId: "",
-          creditLimit: 0,
-          currentBalance: 0,
-          totalSpent: 0, 
-          orders: 0, 
-          lastOrder: new Date().toISOString().split('T')[0],
-          isActive: formData.status === "Active"
-        })
-        
-        updateProgress("Operation completed!", 4, 4)
-        await new Promise(resolve => setTimeout(resolve, 300))
-        
-        toast({ title: "Success", description: "Client added successfully!", })
-        resetForm()
-        setIsAddDialogOpen(false)
-        setShowSuccessAlert(true)
-        setAlertMessage("Client added successfully!")
-      } else {
-        updateProgress("Preparing approval request...", 2, 3)
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        updateProgress("Submitting for approval...", 3, 3)
-        setShowApprovalDialog(true)
-      }
+      updateProgress("Adding client to database...", 2, 4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      updateProgress("Setting up client profile...", 3, 4)
+      const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+      const { customCompany, ...clientData } = formData
+      await addClient({ 
+        ...clientData, 
+        company: companyName,
+        address: {
+          street: formData.address,
+          city: "",
+          state: "",
+          zipCode: "",
+          country: "",
+        },
+        taxId: "",
+        creditLimit: 0,
+        currentBalance: 0,
+        totalSpent: 0, 
+        orders: 0, 
+        lastOrder: new Date().toISOString().split('T')[0],
+        isActive: formData.status === "Active"
+      })
+      
+      updateProgress("Operation completed!", 4, 4)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      toast({ title: "Success", description: "Client added successfully!", })
+      resetForm()
+      setIsAddDialogOpen(false)
+      setShowSuccessAlert(true)
+      setAlertMessage("Client added successfully!")
     } catch (err) {
       toast({ title: "Error", description: "Failed to add client.", variant: "destructive" })
     } finally {
@@ -213,7 +199,7 @@ export default function ClientsPage() {
         lastOrder: new Date().toISOString().split('T')[0],
         isActive: formData.status === "Active"
       },
-      requestedBy: user?.email || "",
+      requestedBy: "", // Removed user?.email || ""
       reason: approvalReason,
     })
     toast({ title: "Submitted", description: "Client request submitted for admin approval." })
@@ -225,7 +211,7 @@ export default function ClientsPage() {
 
   const handleEdit = (client: any) => {
     setEditingClient(client)
-    setFormData({
+    updateForm({
       name: client.name,
       email: client.email,
       phone: client.phone,
@@ -348,14 +334,14 @@ export default function ClientsPage() {
                 <DialogTitle>Add New Client</DialogTitle>
                 <DialogDescription>
                   Enter client information to add to your database
-                  {user?.role !== "admin" && (
+                  {/* Removed user?.role !== "admin" && ( */}
                     <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                       <div className="flex items-center text-amber-800 dark:text-amber-200">
                         <Clock className="h-4 w-4 mr-2" />
                         <span className="text-sm font-medium">Changes require admin approval</span>
                       </div>
                     </div>
-                  )}
+                  {/* ) */}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -364,7 +350,7 @@ export default function ClientsPage() {
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, name: e.target.value })}
                     required
                   />
                 </div>
@@ -374,7 +360,7 @@ export default function ClientsPage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, email: e.target.value })}
                     required
                   />
                 </div>
@@ -383,7 +369,7 @@ export default function ClientsPage() {
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, phone: e.target.value })}
                     required
                   />
                 </div>
@@ -392,7 +378,7 @@ export default function ClientsPage() {
                   <div className="space-y-2">
                     <Select
                       value={formData.company}
-                      onValueChange={(value) => setFormData({ ...formData, company: value })}
+                      onValueChange={(value) => updateForm({ ...formData, company: value })}
                       required
                     >
                       <SelectTrigger>
@@ -411,7 +397,7 @@ export default function ClientsPage() {
                       <Input
                         placeholder="Enter custom company type"
                         value={formData.customCompany || ""}
-                        onChange={(e) => setFormData({ ...formData, customCompany: e.target.value })}
+                        onChange={(e) => updateForm({ ...formData, customCompany: e.target.value })}
                         className="mt-2"
                         required
                       />
@@ -423,7 +409,7 @@ export default function ClientsPage() {
                   <Input
                     id="address"
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, address: e.target.value })}
                     placeholder="Enter full address"
                   />
                 </div>
@@ -431,7 +417,7 @@ export default function ClientsPage() {
                   <Label htmlFor="status">Status</Label>
                   <Select
                     value={formData.status}
-                    onValueChange={(value) => setFormData({ ...formData, status: value })}
+                    onValueChange={(value) => updateForm({ ...formData, status: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
@@ -443,11 +429,12 @@ export default function ClientsPage() {
                   </Select>
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button type="button" variant="neutralOutline" onClick={clearForm}>
                     Cancel
                   </Button>
                   <Button type="submit">
-                    {user?.role === "admin" ? "Add Client" : "Submit for Approval"}
+                    {/* Removed user?.role === "admin" ? "Add Client" : "Submit for Approval" */}
+                    Add Client
                   </Button>
                 </div>
               </form>
@@ -500,7 +487,7 @@ export default function ClientsPage() {
               <Input
                 id="edit-name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => updateForm({ ...formData, name: e.target.value })}
                 required
               />
             </div>
@@ -510,7 +497,7 @@ export default function ClientsPage() {
                 id="edit-email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => updateForm({ ...formData, email: e.target.value })}
                 required
               />
             </div>
@@ -519,7 +506,7 @@ export default function ClientsPage() {
               <Input
                 id="edit-phone"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => updateForm({ ...formData, phone: e.target.value })}
                 required
               />
             </div>
@@ -528,7 +515,7 @@ export default function ClientsPage() {
               <div className="space-y-2">
                 <Select
                   value={formData.company}
-                  onValueChange={(value) => setFormData({ ...formData, company: value })}
+                  onValueChange={(value) => updateForm({ ...formData, company: value })}
                   required
                 >
                   <SelectTrigger>
@@ -547,7 +534,7 @@ export default function ClientsPage() {
                   <Input
                     placeholder="Enter custom company type"
                     value={formData.customCompany || ""}
-                    onChange={(e) => setFormData({ ...formData, customCompany: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, customCompany: e.target.value })}
                     className="mt-2"
                     required
                   />
@@ -559,7 +546,7 @@ export default function ClientsPage() {
               <Input
                 id="edit-address"
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                onChange={(e) => updateForm({ ...formData, address: e.target.value })}
                 placeholder="Enter full address"
               />
             </div>
@@ -567,7 +554,7 @@ export default function ClientsPage() {
               <Label htmlFor="edit-status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) => setFormData({ ...formData, status: value })}
+                onValueChange={(value) => updateForm({ ...formData, status: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -579,7 +566,10 @@ export default function ClientsPage() {
               </Select>
             </div>
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button type="button" variant="neutralOutline" onClick={() => {
+                clearForm()
+                setIsEditDialogOpen(false)
+              }}>
                 Cancel
               </Button>
               <Button type="submit">Update Client</Button>

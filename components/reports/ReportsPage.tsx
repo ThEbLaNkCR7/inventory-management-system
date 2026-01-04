@@ -1,7 +1,6 @@
 "use client"
 
 import { useInventory } from "@/contexts/InventoryContext"
-import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -19,19 +18,9 @@ const formatDate = (dateString: string) => {
 }
 
 export default function ReportsPage() {
-  const { user } = useAuth()
   const { products, purchases, sales, getLowStockProducts, getTotalSales, getTotalPurchases, getProfit } =
     useInventory()
   const [reportType, setReportType] = useState<'monthly' | 'yearly'>('monthly')
-
-  if (user?.role !== "admin") {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Access Denied</h2>
-        <p className="text-gray-600 dark:text-gray-400">You don't have permission to view this page.</p>
-      </div>
-    )
-  }
 
   const totalSales = getTotalSales()
   const totalPurchases = getTotalPurchases()

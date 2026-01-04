@@ -1,70 +1,68 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface User {
   id: string
-  email: string
   name: string
-  role: "admin" | "user"
+  email: string
+  role: 'admin' | 'manager' | 'employee'
+  isActive: boolean
 }
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<boolean>
-  logout: () => void
   loading: boolean
+  login: (email: string, password: string) => Promise<void>
+  logout: () => void
   isAuthenticated: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Fallback users if API is not available (for development only)
-const fallbackUsers = [
-  { id: "1", email: "admin@sheelwaterproofing.com", password: "loltheblank@ronaldoasaurav2", name: "Admin User", role: "admin" as const },
-  { id: "2", email: "user@sheelwaterproofing.com", password: "user@sheel", name: "Regular User", role: "user" as const },
-]
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
-  // Check if user session is valid
-  const isSessionValid = (userData: any): userData is User => {
-    return userData && 
-           typeof userData === 'object' && 
-           userData.id && 
-           userData.email && 
-           userData.name && 
-           userData.role &&
-           ['admin', 'user'].includes(userData.role)
-  }
-
+  // Check for existing session on mount
   useEffect(() => {
-    // Restore user session from localStorage on page reload
-    const savedUser = localStorage.getItem("user")
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser)
-        if (isSessionValid(userData)) {
-          setUser(userData)
-        } else {
-          console.warn("Invalid user data in localStorage, clearing...")
-          localStorage.removeItem("user")
-        }
-      } catch (error) {
-        console.error("Error parsing saved user data:", error)
-        localStorage.removeItem("user")
-      }
-    }
-    setLoading(false)
+    checkAuth()
   }, [])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const checkAuth = async () => {
     try {
-      // Try to connect to API first
-      const response = await fetch('/api/auth/login', {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setLoading(false)
+        return
+      }
+
+      const response = await fetch('/api/auth?action=me', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+      } else {
+        // Token is invalid, remove it
+        localStorage.removeItem('token')
+      }
+    } catch (error) {
+      console.error('Auth check error:', error)
+      localStorage.removeItem('token')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await fetch('/api/auth?action=login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -72,68 +70,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        if (data.user && isSessionValid(data.user)) {
-          setUser(data.user)
-          localStorage.setItem("user", JSON.stringify(data.user))
-          return true
-        } else {
-          console.error("Invalid user data received from API")
-          return false
-        }
-      } else {
-        // If API fails, fall back to local authentication (development only)
-        console.log("API login failed, trying fallback authentication")
-        const foundUser = fallbackUsers.find((u) => u.email === email && u.password === password)
-        if (foundUser) {
-          const userData = { 
-            id: foundUser.id, 
-            email: foundUser.email, 
-            name: foundUser.name, 
-            role: foundUser.role 
-          }
-          setUser(userData)
-          localStorage.setItem("user", JSON.stringify(userData))
-          return true
-        }
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed')
       }
-    } catch (error) {
-      console.log("API not available, using fallback authentication")
-      // Fallback to local authentication (development only)
-      const foundUser = fallbackUsers.find((u) => u.email === email && u.password === password)
-      if (foundUser) {
-        const userData = { 
-          id: foundUser.id, 
-          email: foundUser.email, 
-          name: foundUser.name, 
-          role: foundUser.role 
-        }
-        setUser(userData)
-        localStorage.setItem("user", JSON.stringify(userData))
-        return true
-      }
+
+      // Store token and user data
+      localStorage.setItem('token', data.token)
+      setUser(data.user)
+
+      // Redirect to dashboard
+      router.push('/')
+    } catch (error: any) {
+      throw error
     }
-    return false
   }
 
   const logout = () => {
+    localStorage.removeItem('token')
     setUser(null)
-    localStorage.removeItem("user")
-    localStorage.removeItem("currentSystem")
-    // Clear any other auth-related data
-    localStorage.removeItem("sidebarOpen")
-    localStorage.removeItem("employeeSidebarOpen")
+    router.push('/login')
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      login, 
-      logout, 
-      loading, 
-      isAuthenticated: !!user 
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        isAuthenticated: !!user,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
@@ -142,7 +111,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext)
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
 }
+

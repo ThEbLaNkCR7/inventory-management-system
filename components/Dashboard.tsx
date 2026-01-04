@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useAuth } from "@/contexts/AuthContext"
 import { useRouter, useSearchParams } from "next/navigation"
 import Sidebar from "@/components/layout/Sidebar"
 import Header from "@/components/layout/Header"
@@ -19,7 +18,6 @@ import VisualReports from "@/components/reports/VisualReports"
 import { ChevronRight, Menu } from "lucide-react"
 
 export default function Dashboard() {
-  const { user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialTab = searchParams.get("tab") || "dashboard"
@@ -41,16 +39,23 @@ export default function Dashboard() {
   useEffect(() => {
     const checkScreenSize = () => {
       const mobile = window.innerWidth < 1024
+      console.log('Screen size check:', { width: window.innerWidth, mobile, sidebarOpen })
       setIsMobile(mobile)
       
       // Auto-close sidebar on mobile
       if (mobile && sidebarOpen) {
+        console.log('Auto-closing sidebar on mobile')
         setSidebarOpen(false)
       }
     }
 
+    // Check immediately on mount
     checkScreenSize()
+    
+    // Add event listener for resize
     window.addEventListener('resize', checkScreenSize)
+    
+    // Cleanup
     return () => window.removeEventListener('resize', checkScreenSize)
   }, [sidebarOpen])
 
@@ -130,8 +135,10 @@ export default function Dashboard() {
         )}
         
         <Header 
-          user={user} 
-          onMenuClick={() => setSidebarOpen(!sidebarOpen)} 
+          onMenuClick={() => {
+            console.log('Header menu clicked!', { currentSidebarOpen: sidebarOpen, isMobile })
+            setSidebarOpen(!sidebarOpen)
+          }} 
           sidebarOpen={sidebarOpen}
           isMobile={isMobile}
         />

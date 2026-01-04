@@ -6,6 +6,7 @@ import { BatchProvider } from "@/contexts/BatchContext"
 import { ApprovalProvider } from "@/contexts/ApprovalContext"
 import { ThemeProvider } from "@/contexts/ThemeContext"
 import { NotificationProvider } from "@/contexts/NotificationContext"
+import { FormPersistenceProvider } from "@/contexts/FormPersistenceContext"
 import "./globals.css"
 
 const outfit = Outfit({ 
@@ -29,7 +30,9 @@ export default function RootLayout({
               <BatchProvider>
                 <ApprovalProvider>
                   <NotificationProvider>
-                    {children}
+                    <FormPersistenceProvider>
+                      {children}
+                    </FormPersistenceProvider>
                   </NotificationProvider>
                 </ApprovalProvider>
               </BatchProvider>

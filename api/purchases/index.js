@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import Purchase from '../../models/Purchase.js'
+import Product from '../../models/Product.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 
@@ -57,8 +58,21 @@ export default async function handler(req, res) {
         const purchase = new Purchase(purchaseData)
         
         await purchase.save()
+        
+        // Update product stock quantity
+        const product = await Product.findById(purchase.productId)
+        if (product) {
+          const newStockQuantity = product.stockQuantity + purchase.quantityPurchased
+          await Product.findByIdAndUpdate(purchase.productId, {
+            stockQuantity: newStockQuantity,
+            lastRestocked: new Date()
+          })
+          console.log(`📦 Updated stock for ${product.name}: ${product.stockQuantity} → ${newStockQuantity}`)
+        }
+        
         res.status(201).json(purchase)
       } catch (error) {
+        console.error('Error creating purchase:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break

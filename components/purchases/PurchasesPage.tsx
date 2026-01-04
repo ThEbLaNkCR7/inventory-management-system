@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
-import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
+import { usePersistentForm } from "@/contexts/FormPersistenceContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,9 +26,10 @@ import { Plus, Search, Edit, Trash2, CheckCircle, AlertTriangle, Clock, Loader2,
 import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { Progress } from "@/components/ui/progress"
+import { MaterialDatePicker } from "@/components/ui/MaterialDatePicker"
 
 export default function PurchasesPage() {
-  const { user } = useAuth()
+  const { user } = useInventory()
   const { products, purchases, suppliers, sales, addPurchase, updatePurchase, deletePurchase } = useInventory()
   const { submitChange } = useApproval()
   const { toast } = useToast()
@@ -45,7 +46,7 @@ export default function PurchasesPage() {
   const [deletingPurchase, setDeletingPurchase] = useState<any>(null)
   const [viewingPurchase, setViewingPurchase] = useState<any>(null)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     productId: "",
     supplier: "",
     supplierType: "Company",
@@ -54,7 +55,9 @@ export default function PurchasesPage() {
     purchasePrice: 0,
     purchaseDate: new Date().toISOString().split("T")[0],
     netWeight: 0,
-  })
+  }
+
+  const { formData, updateForm, resetForm } = usePersistentForm('purchases-form', initialFormData)
   const [editReason, setEditReason] = useState("")
   const [deleteReason, setDeleteReason] = useState("")
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
@@ -108,18 +111,10 @@ export default function PurchasesPage() {
 
   const purchasesCounts = getPurchasesCounts()
 
-  const resetForm = () => {
-    setFormData({
-      productId: "",
-      supplier: "",
-      supplierType: "Company",
-      customSupplier: "",
-      quantityPurchased: 0,
-      purchasePrice: 0,
-      purchaseDate: new Date().toISOString().split("T")[0],
-      netWeight: 0,
-    })
+  const clearForm = () => {
+    resetForm()
     setEditReason("")
+    setIsAddDialogOpen(false)
   }
 
   const showAlert = (message: string, isSuccess = true) => {
@@ -189,7 +184,7 @@ export default function PurchasesPage() {
     // Convert date to YYYY-MM-DD format for HTML date input
     const formattedDate = new Date(purchase.purchaseDate).toISOString().split('T')[0]
     
-    setFormData({
+    updateForm({
       productId: product?.id || "",
       supplier: purchase.supplier,
       supplierType: purchase.supplierType,
@@ -327,7 +322,7 @@ export default function PurchasesPage() {
     if (formData.productId) {
       const product = products.find((p) => p.id === formData.productId)
       if (product && typeof product.netWeight === "number") {
-        setFormData((prev) => ({ ...prev, netWeight: product.netWeight ?? 0 }))
+        updateForm({ netWeight: product.netWeight ?? 0 })
       }
     }
   }, [formData.productId, products])
@@ -414,7 +409,7 @@ export default function PurchasesPage() {
                   <Label htmlFor="product">Product *</Label>
                   <Select
                     value={formData.productId}
-                    onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                    onValueChange={(value) => updateForm({ ...formData, productId: value })}
                     required
                   >
                     <SelectTrigger>
@@ -423,7 +418,7 @@ export default function PurchasesPage() {
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name} (HS Code: {product.hsCode})
+                          {product.name} - {product.netWeight}kg (Stock: {product.stockQuantity})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -434,7 +429,7 @@ export default function PurchasesPage() {
                   <div className="space-y-2">
                     <Select
                       value={formData.supplier}
-                      onValueChange={(value) => setFormData({ ...formData, supplier: value })}
+                      onValueChange={(value) => updateForm({ ...formData, supplier: value })}
                       required
                     >
                       <SelectTrigger>
@@ -453,7 +448,7 @@ export default function PurchasesPage() {
                       <Input
                         placeholder="Enter custom supplier name"
                         value={formData.customSupplier || ""}
-                        onChange={(e) => setFormData({ ...formData, customSupplier: e.target.value })}
+                        onChange={(e) => updateForm({ ...formData, customSupplier: e.target.value })}
                         className="mt-2"
                         required
                       />
@@ -464,7 +459,7 @@ export default function PurchasesPage() {
                   <Label htmlFor="supplierType">Supplier Type *</Label>
                   <Select
                     value={formData.supplierType}
-                    onValueChange={(value) => setFormData({ ...formData, supplierType: value })}
+                    onValueChange={(value) => updateForm({ ...formData, supplierType: value })}
                     required
                   >
                     <SelectTrigger>
@@ -485,7 +480,7 @@ export default function PurchasesPage() {
                       min="1"
                       value={formData.quantityPurchased}
                       onChange={(e) =>
-                        setFormData({ ...formData, quantityPurchased: Number.parseInt(e.target.value) || 0 })
+                        updateForm({ ...formData, quantityPurchased: Number.parseInt(e.target.value) || 0 })
                       }
                       required
                     />
@@ -498,23 +493,20 @@ export default function PurchasesPage() {
                       step="0.01"
                       min="0"
                       value={formData.purchasePrice}
-                      onChange={(e) => setFormData({ ...formData, purchasePrice: Number.parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => updateForm({ ...formData, purchasePrice: Number.parseFloat(e.target.value) || 0 })}
                       required
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="date">Purchase Date *</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.purchaseDate}
-                    onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                    required
+                  <MaterialDatePicker
+                    value={formData.purchaseDate ? new Date(formData.purchaseDate) : undefined}
+                    onChange={(date: Date | undefined) => updateForm({ ...formData, purchaseDate: date ? date.toISOString().split("T")[0] : "" })}
                   />
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button type="button" variant="neutralOutline" onClick={clearForm}>
                     Cancel
                   </Button>
                   <Button type="submit">
@@ -996,7 +988,7 @@ export default function PurchasesPage() {
               <Label htmlFor="edit-product">Product *</Label>
               <Select
                 value={formData.productId}
-                onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                onValueChange={(value) => updateForm({ ...formData, productId: value })}
                 required
               >
                 <SelectTrigger>
@@ -1005,7 +997,7 @@ export default function PurchasesPage() {
                 <SelectContent>
                   {products.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.name} (HS Code: {product.hsCode})
+                      {product.name} - {product.netWeight}kg (Stock: {product.stockQuantity})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1016,7 +1008,7 @@ export default function PurchasesPage() {
               <div className="space-y-2">
                 <Select
                   value={formData.supplier}
-                  onValueChange={(value) => setFormData({ ...formData, supplier: value })}
+                  onValueChange={(value) => updateForm({ ...formData, supplier: value })}
                   required
                 >
                   <SelectTrigger>
@@ -1035,7 +1027,7 @@ export default function PurchasesPage() {
                   <Input
                     placeholder="Enter custom supplier name"
                     value={formData.customSupplier || ""}
-                    onChange={(e) => setFormData({ ...formData, customSupplier: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, customSupplier: e.target.value })}
                     className="mt-2"
                     required
                   />
@@ -1046,7 +1038,7 @@ export default function PurchasesPage() {
               <Label htmlFor="edit-supplierType">Supplier Type *</Label>
               <Select
                 value={formData.supplierType}
-                onValueChange={(value) => setFormData({ ...formData, supplierType: value })}
+                onValueChange={(value) => updateForm({ ...formData, supplierType: value })}
                 required
               >
                 <SelectTrigger>
@@ -1067,7 +1059,7 @@ export default function PurchasesPage() {
                   min="1"
                   value={formData.quantityPurchased}
                   onChange={(e) =>
-                    setFormData({ ...formData, quantityPurchased: Number.parseInt(e.target.value) || 0 })
+                    updateForm({ ...formData, quantityPurchased: Number.parseInt(e.target.value) || 0 })
                   }
                   required
                 />
@@ -1080,23 +1072,23 @@ export default function PurchasesPage() {
                   step="0.01"
                   min="0"
                   value={formData.purchasePrice}
-                  onChange={(e) => setFormData({ ...formData, purchasePrice: Number.parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => updateForm({ ...formData, purchasePrice: Number.parseFloat(e.target.value) || 0 })}
                   required
                 />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-date">Purchase Date *</Label>
-              <Input
-                id="edit-date"
-                type="date"
-                value={formData.purchaseDate}
-                onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
-                required
+              <MaterialDatePicker
+                value={formData.purchaseDate ? new Date(formData.purchaseDate) : undefined}
+                onChange={(date: Date | undefined) => updateForm({ ...formData, purchaseDate: date ? date.toISOString().split("T")[0] : "" })}
               />
             </div>
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button type="button" variant="neutralOutline" onClick={() => {
+                clearForm()
+                setIsEditDialogOpen(false)
+              }}>
                 Cancel
               </Button>
               <Button type="submit">{user?.role === "admin" ? "Update Purchase" : "Submit Changes"}</Button>

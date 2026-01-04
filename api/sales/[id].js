@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import Sale from '../../models/Sale.js'
+import Product from '../../models/Product.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 
@@ -54,19 +55,53 @@ export default async function handler(req, res) {
       break
     case 'PUT':
       try {
+        // Get the original sale to calculate stock difference
+        const originalSale = await Sale.findById(id)
+        if (!originalSale) return res.status(404).json({ message: 'Sale not found' })
+        
         const sale = await Sale.findByIdAndUpdate(id, req.body, { new: true, runValidators: true })
         if (!sale) return res.status(404).json({ message: 'Sale not found' })
+        
+        // Update product stock quantity
+        const product = await Product.findById(sale.productId)
+        if (product) {
+          // Calculate the difference in quantity sold
+          const quantityDifference = originalSale.quantitySold - sale.quantitySold
+          const newStockQuantity = Math.max(0, product.stockQuantity + quantityDifference)
+          
+          await Product.findByIdAndUpdate(sale.productId, {
+            stockQuantity: newStockQuantity,
+            lastRestocked: new Date()
+          })
+          console.log(`📦 Updated stock for ${product.name}: ${product.stockQuantity} → ${newStockQuantity} (difference: ${quantityDifference})`)
+        }
+        
         res.status(200).json(sale)
       } catch (error) {
+        console.error('Error updating sale:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break
     case 'DELETE':
       try {
-        const sale = await Sale.findByIdAndDelete(id)
+        const sale = await Sale.findById(id)
         if (!sale) return res.status(404).json({ message: 'Sale not found' })
+        
+        // Update product stock quantity before deleting
+        const product = await Product.findById(sale.productId)
+        if (product) {
+          const newStockQuantity = product.stockQuantity + sale.quantitySold
+          await Product.findByIdAndUpdate(sale.productId, {
+            stockQuantity: newStockQuantity,
+            lastRestocked: new Date()
+          })
+          console.log(`📦 Restored stock for ${product.name}: ${product.stockQuantity} → ${newStockQuantity}`)
+        }
+        
+        await Sale.findByIdAndDelete(id)
         res.status(200).json({ message: 'Sale deleted successfully' })
       } catch (error) {
+        console.error('Error deleting sale:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break

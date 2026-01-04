@@ -4,10 +4,11 @@ import type React from "react"
 import { Package } from "lucide-react"
 
 import { useState, useEffect, useMemo } from "react"
-import { useInventory } from "@/contexts/InventoryContext"
 import { useAuth } from "@/contexts/AuthContext"
+import { useInventory } from "@/contexts/InventoryContext"
 import { useApproval } from "@/contexts/ApprovalContext"
 import { useNotifications } from "@/contexts/NotificationContext"
+import { usePersistentForm } from "@/contexts/FormPersistenceContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -52,7 +53,7 @@ export default function ProductsPage() {
     data: any
     productId?: string
   } | null>(null)
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     name: "",
     hsCode: "",
     description: "",
@@ -63,7 +64,9 @@ export default function ProductsPage() {
     supplier: "",
     stockType: "new" as "new" | "old",
     lowStockThreshold: 5,
-  })
+  }
+
+  const { formData, updateForm, resetForm } = usePersistentForm('products-form', initialFormData)
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
   const [approvalReason, setApprovalReason] = useState("")
@@ -93,9 +96,9 @@ export default function ProductsPage() {
   }, [products])
   const handleNetWeightChange = (value: string) => {
     if (value === "custom") {
-      setFormData({ ...formData, netWeight: customNetWeight })
+      updateForm({ netWeight: customNetWeight })
     } else {
-      setFormData({ ...formData, netWeight: Number(value) })
+      updateForm({ netWeight: Number(value) })
     }
   }
 
@@ -109,6 +112,30 @@ export default function ProductsPage() {
     return matchesSearch && matchesCategory
   })
 
+  // Group products by name to show variants in dropdown
+  const groupedProducts = useMemo(() => {
+    const groups: {[key: string]: any[]} = {}
+    
+    filteredProducts.forEach(product => {
+      if (!groups[product.name]) {
+        groups[product.name] = []
+      }
+      groups[product.name].push(product)
+    })
+    
+    // Convert to array and sort by name
+    return Object.entries(groups).map(([name, variants]) => ({
+      name,
+      variants: variants.sort((a, b) => (a.netWeight || 0) - (b.netWeight || 0)),
+      totalStock: variants.reduce((sum, p) => sum + p.stockQuantity, 0),
+      // Use the first variant for common fields
+      category: variants[0].category,
+      hsCode: variants[0].hsCode,
+      supplier: variants[0].supplier,
+      unitPrice: variants[0].unitPrice,
+    }))
+  }, [filteredProducts])
+
   // Auto-hide success alerts
   useEffect(() => {
     if (showSuccessAlert) {
@@ -119,23 +146,14 @@ export default function ProductsPage() {
     }
   }, [showSuccessAlert])
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      hsCode: "",
-      description: "",
-      category: "",
-      stockQuantity: 0,
-      unitPrice: 0,
-      netWeight: 0,
-      supplier: "",
-      stockType: "new" as "new" | "old",
-      lowStockThreshold: 5,
-    })
+  const clearForm = () => {
+    resetForm()
     setEditingProduct(null)
     setApprovalReason("")
     setIsAddingNewCategory(false)
     setNewCategoryName("")
+    setAutoFilledFields({}) // Clear auto-fill indicators
+    setIsAddDialogOpen(false)
   }
 
   const updateProgress = (step: string, current: number, total: number) => {
@@ -147,14 +165,30 @@ export default function ProductsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Close form immediately when submit is clicked
-    setIsAddDialogOpen(false)
-    
     // Use newCategoryName if adding new category
     const submitData = {
       ...formData,
       category: isAddingNewCategory ? newCategoryName : formData.category
     }
+    
+    // Validate required fields
+    if (!submitData.name || submitData.name.trim() === '') {
+      toast({ title: "Error", description: "Product name is required", variant: "destructive" })
+      return
+    }
+    
+    if (!submitData.supplier || submitData.supplier.trim() === '') {
+      toast({ title: "Error", description: "Supplier is required", variant: "destructive" })
+      return
+    }
+    
+    if (!submitData.category || submitData.category.trim() === '') {
+      toast({ title: "Error", description: "Category is required", variant: "destructive" })
+      return
+    }
+    
+    // Close form immediately when submit is clicked
+    setIsAddDialogOpen(false)
     
     setIsLoading(true)
     setProgress(0)
@@ -264,6 +298,28 @@ export default function ProductsPage() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Use newCategoryName if adding new category
+    const submitData = {
+      ...formData,
+      category: isAddingNewCategory ? newCategoryName : formData.category
+    }
+    
+    // Validate required fields
+    if (!submitData.name || submitData.name.trim() === '') {
+      toast({ title: "Error", description: "Product name is required", variant: "destructive" })
+      return
+    }
+    
+    if (!submitData.supplier || submitData.supplier.trim() === '') {
+      toast({ title: "Error", description: "Supplier is required", variant: "destructive" })
+      return
+    }
+    
+    if (!submitData.category || submitData.category.trim() === '') {
+      toast({ title: "Error", description: "Category is required", variant: "destructive" })
+      return
+    }
+    
     // Close form immediately when submit is clicked
     setIsEditDialogOpen(false)
     
@@ -281,12 +337,6 @@ export default function ProductsPage() {
         
         updateProgress("Validating changes...", 1, 4)
         await new Promise(resolve => setTimeout(resolve, 500))
-        
-        // Use newCategoryName if adding new category
-        const submitData = {
-          ...formData,
-          category: isAddingNewCategory ? newCategoryName : formData.category
-        }
         
         if (user?.role === "admin") {
           toast({ 
@@ -405,7 +455,7 @@ export default function ProductsPage() {
 
   const handleEdit = (product: any) => {
     setEditingProduct(product)
-    setFormData({
+    updateForm({
       name: product.name,
       hsCode: product.hsCode,
       description: product.description,
@@ -505,14 +555,66 @@ export default function ProductsPage() {
   }
 
   const [customProductName, setCustomProductName] = useState("")
+  const [autoFilledFields, setAutoFilledFields] = useState<{[key: string]: boolean}>({})
+  const [selectedVariants, setSelectedVariants] = useState<{[key: string]: string}>({})
   const uniqueProductNames = useMemo(() => {
     return Array.from(new Set(products.map((p) => p.name).filter(Boolean))).sort()
   }, [products])
+
+
+
   const handleProductNameChange = (value: string) => {
     if (value === "custom") {
-      setFormData({ ...formData, name: customProductName })
+      updateForm({ name: customProductName })
+      setAutoFilledFields({}) // Clear auto-fill indicators
     } else {
-      setFormData({ ...formData, name: value })
+      // Find the first product with this name to auto-fill common fields
+      const existingProduct = products.find(p => p.name === value)
+      
+      if (existingProduct) {
+        // Track which fields are being auto-filled
+        const newAutoFilledFields: {[key: string]: boolean} = {}
+        
+        // Auto-fill HS code, category, and supplier from existing product
+        // Only auto-fill if the existing product has non-empty values
+        const updatedFormData = {
+          ...formData,
+          name: value,
+          hsCode: existingProduct.hsCode && existingProduct.hsCode.trim() !== '' ? existingProduct.hsCode : formData.hsCode,
+          category: existingProduct.category && existingProduct.category.trim() !== '' ? existingProduct.category : formData.category,
+          supplier: existingProduct.supplier && existingProduct.supplier.trim() !== '' ? existingProduct.supplier : formData.supplier,
+        }
+        
+        // Mark fields as auto-filled if they were changed and have valid values
+        if (existingProduct.hsCode && existingProduct.hsCode.trim() !== '' && existingProduct.hsCode !== formData.hsCode) {
+          newAutoFilledFields.hsCode = true
+        }
+        if (existingProduct.category && existingProduct.category.trim() !== '' && existingProduct.category !== formData.category) {
+          newAutoFilledFields.category = true
+        }
+        if (existingProduct.supplier && existingProduct.supplier.trim() !== '' && existingProduct.supplier !== formData.supplier) {
+          newAutoFilledFields.supplier = true
+        }
+        
+        updateForm(updatedFormData)
+        setAutoFilledFields(newAutoFilledFields)
+        
+        // Clear auto-fill indicators after 3 seconds
+        setTimeout(() => setAutoFilledFields({}), 3000)
+      } else {
+        updateForm({ name: value })
+        setAutoFilledFields({}) // Clear auto-fill indicators
+      }
+    }
+  }
+
+  const handleCategoryChange = (value: string) => {
+    if (value === "__new__") {
+      setIsAddingNewCategory(true)
+      setNewCategoryName("")
+    } else {
+      setIsAddingNewCategory(false)
+      updateForm({ category: value })
     }
   }
 
@@ -612,29 +714,46 @@ export default function ProductsPage() {
                         value={formData.name}
                         onChange={(e) => {
                           setCustomProductName(e.target.value)
-                          setFormData({ ...formData, name: e.target.value })
+                          updateForm({ name: e.target.value })
                         }}
                         placeholder="Enter custom product name"
                       />
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="hsCode" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      HS Code
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="hsCode" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        HS Code
+                      </Label>
+                      {autoFilledFields.hsCode && (
+                        <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                          Auto-filled
+                        </Badge>
+                      )}
+                    </div>
                     <Input
                       id="hsCode"
                       value={formData.hsCode}
-                      onChange={(e) => setFormData({ ...formData, hsCode: e.target.value })}
-                      className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                      onChange={(e) => updateForm({ hsCode: e.target.value })}
+                      className={`border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 ${
+                        autoFilledFields.hsCode ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/10' : ''
+                      }`}
                     />
+
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    Category
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Category
+                    </Label>
+                    {autoFilledFields.category && (
+                      <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                        Auto-filled
+                      </Badge>
+                    )}
+                  </div>
                   {isAddingNewCategory && (
                     <Input
                       id="category-new"
@@ -647,15 +766,7 @@ export default function ProductsPage() {
                   )}
                   <Select
                     value={isAddingNewCategory ? "__new__" : formData.category}
-                    onValueChange={(value) => {
-                      if (value === "__new__") {
-                        setIsAddingNewCategory(true)
-                        setNewCategoryName("")
-                      } else {
-                        setIsAddingNewCategory(false)
-                        setFormData({ ...formData, category: value })
-                      }
-                    }}
+                    onValueChange={handleCategoryChange}
                   >
                     <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                       <SelectValue placeholder="Select or add category" />
@@ -673,12 +784,19 @@ export default function ProductsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="supplier" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                      Supplier
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="supplier" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Supplier
+                      </Label>
+                      {autoFilledFields.supplier && (
+                        <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                          Auto-filled
+                        </Badge>
+                      )}
+                    </div>
                     <Select
                       value={formData.supplier}
-                      onValueChange={(value) => setFormData({ ...formData, supplier: value })}
+                      onValueChange={(value) => updateForm({ supplier: value })}
                     >
                       <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                         <SelectValue placeholder="Select a supplier" />
@@ -700,7 +818,7 @@ export default function ProductsPage() {
                   </Label>
                   <Select
                     value={formData.stockType}
-                    onValueChange={(value: "new" | "old") => setFormData({ ...formData, stockType: value })}
+                    onValueChange={(value: "new" | "old") => updateForm({ stockType: value })}
                   >
                     <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                       <SelectValue placeholder="Select stock type" />
@@ -722,7 +840,7 @@ export default function ProductsPage() {
                       type="number"
                       value={formData.stockQuantity}
                       onChange={(e) =>
-                        setFormData({ ...formData, stockQuantity: Number.parseInt(e.target.value) || 0 })
+                        updateForm({ stockQuantity: Number.parseInt(e.target.value) || 0 })
                       }
                       className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
@@ -738,7 +856,7 @@ export default function ProductsPage() {
                       step="0.01"
                       value={formData.unitPrice}
                       onChange={(e) =>
-                        setFormData({ ...formData, unitPrice: Number.parseFloat(e.target.value) || 0 })
+                        updateForm({ unitPrice: Number.parseFloat(e.target.value) || 0 })
                       }
                       className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                       required
@@ -771,7 +889,7 @@ export default function ProductsPage() {
                         value={formData.netWeight}
                         onChange={(e) => {
                           setCustomNetWeight(Number(e.target.value) || 0)
-                          setFormData({ ...formData, netWeight: Number(e.target.value) || 0 })
+                          updateForm({ netWeight: Number(e.target.value) || 0 })
                         }}
                         placeholder="Enter custom net weight"
                       />
@@ -780,7 +898,7 @@ export default function ProductsPage() {
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-4">
-                  <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button type="button" variant="neutralOutline" onClick={clearForm}>
                     Cancel
                   </Button>
                   <Button type="submit">
@@ -868,29 +986,46 @@ export default function ProductsPage() {
                     value={formData.name}
                     onChange={(e) => {
                       setCustomProductName(e.target.value)
-                      setFormData({ ...formData, name: e.target.value })
+                      updateForm({ name: e.target.value })
                     }}
                     placeholder="Enter custom product name"
                   />
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-hsCode" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  HS Code
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="edit-hsCode" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    HS Code
+                  </Label>
+                  {autoFilledFields.hsCode && (
+                    <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                      Auto-filled
+                    </Badge>
+                  )}
+                </div>
                 <Input
                   id="edit-hsCode"
                   value={formData.hsCode}
-                  onChange={(e) => setFormData({ ...formData, hsCode: e.target.value })}
-                  className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  onChange={(e) => updateForm({ hsCode: e.target.value })}
+                  className={`border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 ${
+                    autoFilledFields.hsCode ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/10' : ''
+                  }`}
                 />
+
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Category
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-category" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Category
+                </Label>
+                {autoFilledFields.category && (
+                  <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                    Auto-filled
+                  </Badge>
+                )}
+              </div>
               {isAddingNewCategory && (
                 <Input
                   id="edit-category-new"
@@ -903,15 +1038,7 @@ export default function ProductsPage() {
               )}
               <Select
                 value={isAddingNewCategory ? "__new__" : formData.category}
-                onValueChange={(value) => {
-                  if (value === "__new__") {
-                    setIsAddingNewCategory(true)
-                    setNewCategoryName("")
-                  } else {
-                    setIsAddingNewCategory(false)
-                    setFormData({ ...formData, category: value })
-                  }
-                }}
+                onValueChange={handleCategoryChange}
               >
                 <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                   <SelectValue placeholder="Select or add category" />
@@ -929,12 +1056,19 @@ export default function ProductsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="edit-supplier" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Supplier
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="edit-supplier" className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    Supplier
+                  </Label>
+                  {autoFilledFields.supplier && (
+                    <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                      Auto-filled
+                    </Badge>
+                  )}
+                </div>
                 <Select
                   value={formData.supplier}
-                  onValueChange={(value) => setFormData({ ...formData, supplier: value })}
+                  onValueChange={(value) => updateForm({ supplier: value })}
                 >
                   <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                     <SelectValue placeholder="Select a supplier" />
@@ -956,7 +1090,7 @@ export default function ProductsPage() {
               </Label>
               <Select
                 value={formData.stockType}
-                onValueChange={(value: "new" | "old") => setFormData({ ...formData, stockType: value })}
+                onValueChange={(value: "new" | "old") => updateForm({ stockType: value })}
               >
                 <SelectTrigger className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                   <SelectValue placeholder="Select stock type" />
@@ -978,7 +1112,7 @@ export default function ProductsPage() {
                   type="number"
                   value={formData.stockQuantity}
                   onChange={(e) =>
-                    setFormData({ ...formData, stockQuantity: Number.parseInt(e.target.value) || 0 })
+                    updateForm({ stockQuantity: Number.parseInt(e.target.value) || 0 })
                   }
                   className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                   required
@@ -994,7 +1128,7 @@ export default function ProductsPage() {
                   step="0.01"
                   value={formData.unitPrice}
                   onChange={(e) =>
-                    setFormData({ ...formData, unitPrice: Number.parseFloat(e.target.value) || 0 })
+                    updateForm({ unitPrice: Number.parseFloat(e.target.value) || 0 })
                   }
                   className="border-2 focus:border-slate-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                   required
@@ -1027,7 +1161,7 @@ export default function ProductsPage() {
                     value={formData.netWeight}
                     onChange={(e) => {
                       setCustomNetWeight(Number(e.target.value) || 0)
-                      setFormData({ ...formData, netWeight: Number(e.target.value) || 0 })
+                      updateForm({ netWeight: Number(e.target.value) || 0 })
                     }}
                     placeholder="Enter custom net weight"
                   />
@@ -1036,7 +1170,10 @@ export default function ProductsPage() {
             </div>
 
             <div className="flex justify-end space-x-2 pt-4">
-              <Button type="button" variant="neutralOutline" onClick={() => setIsEditDialogOpen(false)}>
+              <Button type="button" variant="neutralOutline" onClick={() => {
+                clearForm()
+                setIsEditDialogOpen(false)
+              }}>
                 Cancel
               </Button>
               <Button type="submit">
@@ -1082,7 +1219,7 @@ export default function ProductsPage() {
       {/* Products Table */}
       <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-800 dark:border-gray-700 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">Products Details ({filteredProducts.length})</CardTitle>
+          <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-100">Products Details ({groupedProducts.length})</CardTitle>
           <CardDescription className="text-gray-600 dark:text-gray-400">Manage your product inventory and stock levels</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -1099,72 +1236,97 @@ export default function ProductsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow
-                    key={product.id}
-                    className="hover:bg-slate-50/50 dark:hover:bg-gray-700/50 transition-colors"
-                  >
-                    <TableCell>
-                      <p 
-                        className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        onClick={() => handleProductClick(product)}
-                      >
-                        {product.name}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <p 
-                        className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                        onClick={() => handleProductClick(product)}
-                      >
-                        {product.category}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        {product.stockQuantity <= 5 && <AlertTriangle className="h-4 w-4 text-amber-500" />}
-                        <span
-                          className={`font-semibold ${product.stockQuantity <= 5 ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-slate-400"}`}
+                {groupedProducts.map((group) => {
+                  const selectedVariantId = selectedVariants[group.name] || group.variants[0]?.id
+                  const selectedVariant = group.variants.find(v => v.id === selectedVariantId) || group.variants[0]
+                  
+                  return (
+                    <TableRow
+                      key={group.name}
+                      className="hover:bg-slate-50/50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <TableCell>
+                        <p 
+                          className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          onClick={() => handleProductClick(selectedVariant)}
                         >
-                          {product.stockQuantity}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{product.netWeight ?? "-"}</TableCell>
-                    <TableCell>{product.unitPrice ? `Rs ${product.unitPrice.toLocaleString()}` : '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="neutralOutline"
-                          onClick={() => handleView(product)}
-                          className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
+                          {group.name}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <p 
+                          className="font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          onClick={() => handleProductClick(selectedVariant)}
                         >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="neutralOutline"
-                          onClick={() => handleEdit(product)}
-                          className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="neutralOutline"
-                          onClick={() => handleDelete(product)}
-                          className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          {group.category}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          {selectedVariant.stockQuantity <= 5 && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                          <span
+                            className={`font-semibold ${selectedVariant.stockQuantity <= 5 ? "text-amber-600 dark:text-amber-400" : "text-slate-600 dark:text-slate-400"}`}
+                          >
+                            {selectedVariant.stockQuantity}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {group.variants.length > 1 ? (
+                          <Select
+                            value={selectedVariantId}
+                            onValueChange={(value) => setSelectedVariants(prev => ({...prev, [group.name]: value}))}
+                          >
+                            <SelectTrigger className="w-full text-xs">
+                              <SelectValue placeholder="Select weight" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {group.variants.map((variant) => (
+                                <SelectItem key={variant.id} value={variant.id}>
+                                  {variant.netWeight}kg
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span>{selectedVariant.netWeight ?? "-"}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{selectedVariant.unitPrice ? `Rs ${selectedVariant.unitPrice.toLocaleString()}` : '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="neutralOutline"
+                            onClick={() => handleView(selectedVariant)}
+                            className="hover:bg-blue-50 hover:border-blue-300 dark:hover:bg-blue-900/20 dark:hover:border-blue-600 text-blue-600 dark:text-blue-400 transition-colors"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="neutralOutline"
+                            onClick={() => handleEdit(selectedVariant)}
+                            className="hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="neutralOutline"
+                            onClick={() => handleDelete(selectedVariant)}
+                            className="hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-900/20 dark:hover:border-red-600 text-red-600 dark:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
-            {filteredProducts.length === 0 && (
+            {groupedProducts.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-gray-400 dark:text-gray-500 mb-4">
                   <Package className="h-16 w-16 mx-auto" />

@@ -57,7 +57,15 @@ export default async function handler(req, res) {
         await product.save()
         res.status(201).json(product)
       } catch (error) {
-        res.status(500).json({ message: 'Server error' })
+        console.error('Product creation error:', error)
+        res.status(500).json({ 
+          message: 'Server error', 
+          error: error.message,
+          details: error.errors ? Object.keys(error.errors).map(key => ({
+            field: key,
+            message: error.errors[key].message
+          })) : null
+        })
       }
       break
     default:

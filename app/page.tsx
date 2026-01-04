@@ -1,30 +1,38 @@
 "use client"
 
-import { useAuth } from "@/contexts/AuthContext"
-import SwitchableLoginForm from "@/components/auth/SwitchableLoginForm"
-import Dashboard from "@/components/Dashboard"
-import ProtectedRoute from "@/components/auth/ProtectedRoute"
+import { Suspense, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import Dashboard from "@/components/Dashboard";
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
-  const { user, loading } = useAuth()
+  const { isAuthenticated, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, loading, router]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-600 dark:text-slate-400" />
       </div>
-    )
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
     <div className="min-h-screen">
-      {user ? (
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      ) : (
-        <SwitchableLoginForm />
-      )}
+      <Suspense fallback={<div>Loading...</div>}>
+        <Dashboard />
+      </Suspense>
     </div>
-  )
+  );
 }

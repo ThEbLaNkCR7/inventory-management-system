@@ -5,7 +5,6 @@ import type React from "react"
 import { useState } from "react"
 import { useBatch } from "@/contexts/BatchContext"
 import { useInventory } from "@/contexts/InventoryContext"
-import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +26,6 @@ import { toast } from "@/components/ui/use-toast"
 import { Progress } from "@/components/ui/progress"
 
 export default function BatchesPage() {
-  const { user } = useAuth()
   const { batches, addBatch, updateBatchStatus } = useBatch()
   const { products, suppliers } = useInventory()
   const [searchTerm, setSearchTerm] = useState("")
@@ -167,15 +165,6 @@ export default function BatchesPage() {
       default:
         return "bg-gray-100 text-gray-800"
     }
-  }
-
-  if (user?.role !== "admin") {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-        <p className="text-gray-600">You don't have permission to view this page.</p>
-      </div>
-    )
   }
 
   return (

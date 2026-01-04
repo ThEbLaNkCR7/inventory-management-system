@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import Sale from '../../models/Sale.js'
+import Product from '../../models/Product.js'
 
 const MONGODB_URI = process.env.MONGODB_URI
 
@@ -54,8 +55,21 @@ export default async function handler(req, res) {
       try {
         const sale = new Sale(req.body)
         await sale.save()
+        
+        // Update product stock quantity
+        const product = await Product.findById(sale.productId)
+        if (product) {
+          const newStockQuantity = Math.max(0, product.stockQuantity - sale.quantitySold)
+          await Product.findByIdAndUpdate(sale.productId, {
+            stockQuantity: newStockQuantity,
+            lastRestocked: new Date()
+          })
+          console.log(`📦 Updated stock for ${product.name}: ${product.stockQuantity} → ${newStockQuantity}`)
+        }
+        
         res.status(201).json(sale)
       } catch (error) {
+        console.error('Error creating sale:', error)
         res.status(500).json({ message: 'Server error' })
       }
       break

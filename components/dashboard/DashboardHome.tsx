@@ -1,14 +1,12 @@
 "use client"
 
 import { useInventory } from "@/contexts/InventoryContext"
-import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Package, ShoppingCart, TrendingUp, AlertTriangle, DollarSign, Users, Truck, Calendar, BarChart3, Clock, CheckCircle, XCircle } from "lucide-react"
 import { formatNepaliDateForTable } from "@/lib/utils"
 
 export default function DashboardHome() {
-  const { user } = useAuth()
   const {
     products,
     purchases,

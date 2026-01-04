@@ -13,49 +13,34 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
-import { englishToNepali, formatNepaliDate } from "@/lib/nepaliDateUtils"
 
-interface NepaliDatePickerProps {
+interface DatePickerProps {
   value?: Date
   onValueChange?: (date: Date | undefined) => void
   placeholder?: string
   className?: string
   disabled?: boolean
   showClearButton?: boolean
-  showNepaliDate?: boolean
 }
 
-export function NepaliDatePicker({
+export function DatePicker({
   value,
   onValueChange,
   placeholder = "Select date",
   className,
   disabled = false,
-  showClearButton = true,
-  showNepaliDate = true
-}: NepaliDatePickerProps) {
+  showClearButton = true
+}: DatePickerProps) {
   const [isOpen, setIsOpen] = React.useState(false)
   const [inputValue, setInputValue] = React.useState("")
 
   React.useEffect(() => {
     if (value) {
-      if (showNepaliDate) {
-        try {
-          const nepaliDate = englishToNepali(value)
-          const nepaliFormatted = formatNepaliDate(nepaliDate, 'YYYY MMMM DD')
-          const englishFormatted = format(value, "PPP")
-          setInputValue(`${nepaliFormatted} (${englishFormatted})`)
-        } catch (error) {
-          // Fallback to English date only
-          setInputValue(format(value, "PPP"))
-        }
-      } else {
-        setInputValue(format(value, "PPP"))
-      }
+      setInputValue(format(value, "PPP"))
     } else {
       setInputValue("")
     }
-  }, [value, showNepaliDate])
+  }, [value])
 
   const handleDateSelect = (date: Date | undefined) => {
     onValueChange?.(date)

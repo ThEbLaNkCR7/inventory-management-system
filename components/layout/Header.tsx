@@ -20,7 +20,6 @@ import { useEffect, useRef, useState } from 'react'
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 
 interface HeaderProps {
-  user: any
   onMenuClick: () => void
   sidebarOpen: boolean
   isMobile: boolean
@@ -111,15 +110,14 @@ function AnimatedTitle({ text, isVisible }: { text: string; isVisible: boolean }
   )
 }
 
-export default function Header({ user, onMenuClick, sidebarOpen, isMobile }: HeaderProps) {
-  const { logout } = useAuth()
+export default function Header({ onMenuClick, sidebarOpen, isMobile }: HeaderProps) {
+  const { user, logout } = useAuth()
   const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearAllNotifications } = useNotifications()
   const router = useRouter()
   const pathname = usePathname()
 
   const handleLogout = () => {
     logout()
-    router.push("/")
   }
 
   const isEmployeeSystem = pathname.includes("/employee-dashboard")
@@ -166,20 +164,33 @@ export default function Header({ user, onMenuClick, sidebarOpen, isMobile }: Hea
   return (
     <header className="sticky top-0 z-20 bg-gray-900 dark:bg-gray-950 border-b border-gray-700 dark:border-gray-600 shadow-lg backdrop-blur-sm">
       <div className="flex items-center justify-between h-16 px-4 lg:px-6">
-        {/* Left side - Menu button */}
-        <div className="flex items-center">
+        {/* Left side - Menu button and title */}
+        <div className="flex items-center flex-1">
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden text-gray-300 dark:text-gray-400 hover:bg-gray-700 dark:hover:bg-gray-600"
-            onClick={onMenuClick}
+            className="block lg:hidden text-white hover:bg-gray-700 dark:hover:bg-gray-600 z-30 mr-2 bg-gray-800 dark:bg-gray-700 rounded-md border border-gray-600 dark:border-gray-500"
+            onClick={() => {
+              console.log('Hamburger button clicked!', { isMobile, sidebarOpen })
+              onMenuClick()
+            }}
+            aria-label="Toggle sidebar"
           >
             <Menu className="h-5 w-5" />
           </Button>
+          
+          {/* Mobile title - only show on mobile when sidebar is closed */}
+          {isMobile && !sidebarOpen && (
+            <div className="lg:hidden">
+              <h1 className="text-lg font-bold text-white truncate">
+                Sheel Waterproofing
+              </h1>
+            </div>
+          )}
         </div>
 
-        {/* Center - Logo and Title Container */}
-        <div className={`absolute transition-all duration-700 ease-in-out ${
+        {/* Center - Logo and Title Container (desktop only) */}
+        <div className={`hidden lg:block absolute transition-all duration-700 ease-in-out ${
           !isMobile && sidebarOpen 
             ? 'left-0 transform -translate-x-32 opacity-0 scale-95' 
             : 'left-1/2 transform -translate-x-1/2 opacity-100 scale-100'
@@ -376,16 +387,19 @@ export default function Header({ user, onMenuClick, sidebarOpen, isMobile }: Hea
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-gray-700 dark:hover:bg-gray-600">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder-user.jpg" alt={user?.name} />
-                  <AvatarFallback className="bg-gray-600 text-gray-200 dark:bg-gray-400 dark:text-gray-800">{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                  <AvatarImage src="/placeholder-user.jpg" alt={user?.name || "User"} />
+                  <AvatarFallback className="bg-gray-600 text-gray-200 dark:bg-gray-400 dark:text-gray-800">
+                    {user?.name?.charAt(0).toUpperCase() || "U"}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user?.name}</p>
-                  <p className="text-xs leading-none text-muted-foreground capitalize">{user?.role}</p>
+                  <p className="text-sm font-medium leading-none">{user?.name || "User"}</p>
+                  <p className="text-xs leading-none text-muted-foreground capitalize">{user?.email || ""}</p>
+                  <p className="text-xs leading-none text-muted-foreground capitalize">{user?.role || "None"}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

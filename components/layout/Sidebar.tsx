@@ -1,6 +1,5 @@
 "use client"
 
-import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Home, Package, ShoppingCart, TrendingUp, Users, Truck, BarChart3, X, CheckCircle, ChevronLeft, Menu } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -14,25 +13,6 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, isMobile }: SidebarProps) {
-  const { user } = useAuth()
-  const [isMobileState, setIsMobileState] = useState(false)
-
-  // Handle responsive behavior
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobileState(window.innerWidth < 1024) // lg breakpoint
-      
-      // Auto-close sidebar on mobile when screen size changes
-      if (window.innerWidth < 1024 && isOpen) {
-        setIsOpen(false)
-      }
-    }
-
-    checkScreenSize()
-    window.addEventListener('resize', checkScreenSize)
-    return () => window.removeEventListener('resize', checkScreenSize)
-  }, [isOpen, setIsOpen])
-
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: Home, adminOnly: false },
     { id: "products", label: "Products", icon: Package, adminOnly: false },
@@ -46,12 +26,12 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, is
     { id: "reports", label: "Reports", icon: BarChart3, adminOnly: true },
   ]
 
-  const filteredMenuItems = menuItems.filter((item) => !item.adminOnly || user?.role === "admin")
+  const filteredMenuItems = menuItems.filter((item) => !item.adminOnly)
 
   const handleMenuItemClick = (itemId: string) => {
     setActiveTab(itemId)
     // Close sidebar on mobile after menu item click
-    if (isMobileState) {
+    if (isMobile) {
       setIsOpen(false)
     }
   }
@@ -59,7 +39,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, is
   return (
     <>
       {/* Mobile overlay */}
-      {isOpen && isMobileState && (
+      {isOpen && isMobile && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
           onClick={() => setIsOpen(false)}
@@ -71,7 +51,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, is
         className={`
           fixed inset-y-0 left-0 z-50 w-64 shadow-2xl transform transition-transform duration-300 ease-in-out
           bg-gray-900 dark:bg-gray-950 flex flex-col
-          ${isMobileState 
+          ${isMobile 
             ? (isOpen ? "translate-x-0" : "-translate-x-full") 
             : (isOpen ? "translate-x-0" : "-translate-x-full")
           }
@@ -91,7 +71,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, is
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Mobile close button */}
-            {isMobileState && (
+            {isMobile && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -102,7 +82,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, is
               </Button>
             )}
             {/* Desktop collapse button */}
-            {!isMobileState && (
+            {!isMobile && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -142,8 +122,8 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, is
         {/* User Profile - Fixed at bottom */}
         <div className="flex-shrink-0 p-4 border-t border-gray-700 dark:border-gray-600">
           <div className="bg-gray-800 dark:bg-gray-700 backdrop-blur-sm rounded-lg p-4 border border-gray-600 dark:border-gray-500">
-            <p className="text-sm font-medium text-white">{user?.name}</p>
-            <p className="text-xs text-gray-300 capitalize">{user?.role}</p>
+            <p className="text-sm font-medium text-white">User Name</p>
+            <p className="text-xs text-gray-300 capitalize">User Role</p>
           </div>
         </div>
       </div>

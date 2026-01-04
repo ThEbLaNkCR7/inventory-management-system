@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState } from "react"
 import { useApproval } from "@/contexts/ApprovalContext"
-import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -36,7 +35,6 @@ import {
 } from "lucide-react"
 
 export default function ApprovalsPage() {
-  const { user } = useAuth()
   const { pendingChanges, approveChange, rejectChange, getPendingChanges, getChangeHistory } = useApproval()
   const [selectedChange, setSelectedChange] = useState<any>(null)
   const [reviewNotes, setReviewNotes] = useState("")
@@ -346,15 +344,6 @@ export default function ApprovalsPage() {
       </CardContent>
     </Card>
   )
-
-  if (user?.role !== "admin") {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Access Denied</h2>
-        <p className="text-gray-600 dark:text-gray-400">You don't have permission to view this page.</p>
-      </div>
-    )
-  }
 
   if (pendingChanges.length === 0) {
     return (

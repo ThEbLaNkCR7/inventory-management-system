@@ -1,5 +1,4 @@
-import mongoose from "mongoose"
-import bcrypt from "bcryptjs"
+import mongoose from 'mongoose'
 
 const userSchema = new mongoose.Schema(
   {
@@ -18,49 +17,26 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minlength: 6,
     },
     role: {
       type: String,
-      enum: ["admin", "manager", "employee", "user"],
-      default: "user",
+      enum: ['admin', 'manager', 'employee'],
+      default: 'employee',
     },
     isActive: {
       type: Boolean,
       default: true,
     },
-    lastLogin: {
+    createdAt: {
       type: Date,
+      default: Date.now,
     },
   },
   {
     timestamps: true,
-  },
+  }
 )
 
-// Hash password before saving
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next()
+// Prevent re-compilation during hot reloads
+export default mongoose.models.User || mongoose.model('User', userSchema)
 
-  try {
-    const salt = await bcrypt.genSalt(10)
-    this.password = await bcrypt.hash(this.password, salt)
-    next()
-  } catch (error) {
-    next(error)
-  }
-})
-
-// Compare password method
-userSchema.methods.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password)
-}
-
-// Remove password from JSON output
-userSchema.methods.toJSON = function () {
-  const user = this.toObject()
-  delete user.password
-  return user
-}
-
-export default mongoose.model("User", userSchema) 

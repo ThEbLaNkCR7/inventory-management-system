@@ -4,8 +4,8 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useInventory } from "@/contexts/InventoryContext"
-import { useAuth } from "@/contexts/AuthContext"
 import { useApproval } from "@/contexts/ApprovalContext"
+import { usePersistentForm } from "@/contexts/FormPersistenceContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,7 +36,6 @@ import { Progress } from "@/components/ui/progress"
 import { formatNepaliDateForTable, getNepaliYear, getCurrentNepaliYear } from "@/lib/utils"
 
 export default function SuppliersPage() {
-  const { user } = useAuth()
   const { 
     suppliers, 
     addSupplier, 
@@ -59,7 +58,7 @@ export default function SuppliersPage() {
   const [viewingSupplier, setViewingSupplier] = useState<any>(null)
   const [deletingSupplier, setDeletingSupplier] = useState<any>(null)
   const [deleteReason, setDeleteReason] = useState("")
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     name: "",
     email: "",
     phone: "",
@@ -67,7 +66,9 @@ export default function SuppliersPage() {
     customCompany: "",
     address: "",
     status: "Active",
-  })
+  }
+
+  const { formData, updateForm, resetForm } = usePersistentForm('suppliers-form', initialFormData)
   const [showSuccessAlert, setShowSuccessAlert] = useState(false)
   const [alertMessage, setAlertMessage] = useState("")
   const [showApprovalDialog, setShowApprovalDialog] = useState(false)
@@ -94,17 +95,10 @@ export default function SuppliersPage() {
       supplier.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      company: "",
-      customCompany: "",
-      address: "",
-      status: "Active",
-    })
+  const clearForm = () => {
+    resetForm()
     setDeleteReason("")
+    setIsAddDialogOpen(false)
   }
 
   const showAlert = (message: string, isSuccess = true) => {
@@ -128,27 +122,21 @@ export default function SuppliersPage() {
       toast({ title: "Processing...", description: "Validating supplier data...", duration: 2000 })
       updateProgress("Validating supplier data...", 1, 3)
       
-      if (user?.role === "admin") {
-        updateProgress("Adding supplier to database...", 2, 3)
-        const companyName = formData.company === "custom" ? formData.customCompany : formData.company
-        const { customCompany, ...supplierData } = formData
-        await addSupplier({ 
-          ...supplierData, 
-          company: companyName,
-          orders: 0, 
-          totalSpent: 0, 
-          lastOrder: new Date().toISOString().split('T')[0] 
-        })
-        
-        updateProgress("Operation completed!", 3, 3)
-        toast({ title: "Success", description: "Supplier added successfully!", })
-        resetForm()
-        setShowSuccessAlert(true)
-        setAlertMessage("Supplier added successfully!")
-      } else {
-        updateProgress("Submitting for approval...", 2, 3)
-        setShowApprovalDialog(true)
-      }
+      const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+      const { customCompany, ...supplierData } = formData
+      await addSupplier({ 
+        ...supplierData, 
+        company: companyName,
+        orders: 0, 
+        totalSpent: 0, 
+        lastOrder: new Date().toISOString().split('T')[0] 
+      })
+      
+      updateProgress("Operation completed!", 3, 3)
+      toast({ title: "Success", description: "Supplier added successfully!", })
+      resetForm()
+      setShowSuccessAlert(true)
+      setAlertMessage("Supplier added successfully!")
     } catch (err) {
       toast({ title: "Error", description: "Failed to add supplier.", variant: "destructive" })
     } finally {
@@ -171,7 +159,7 @@ export default function SuppliersPage() {
         totalSpent: 0,
         lastOrder: new Date().toISOString().split('T')[0],
       },
-      requestedBy: user?.email || "",
+      requestedBy: "", // No user context, so no email
       reason: approvalReason,
     })
     resetForm()
@@ -183,7 +171,7 @@ export default function SuppliersPage() {
 
   const handleEdit = (supplier: any) => {
     setEditingSupplier(supplier)
-    setFormData({
+    updateForm({
       name: supplier.name,
       email: supplier.email,
       phone: supplier.phone,
@@ -204,47 +192,20 @@ export default function SuppliersPage() {
       toast({ title: "Processing...", description: "Validating changes...", duration: 2000 })
       updateProgress("Validating changes...", 1, 3)
       
-      if (editingSupplier && (user?.role === "admin" || approvalReason.trim())) {
-        if (user?.role === "admin") {
-          updateProgress("Updating supplier in database...", 2, 3)
-          const companyName = formData.company === "custom" ? formData.customCompany : formData.company
-          const { customCompany, ...supplierData } = formData
-          await updateSupplier(editingSupplier.id, { ...supplierData, company: companyName })
-          
-          updateProgress("Operation completed!", 3, 3)
-          toast({ title: "Success", description: "Supplier updated successfully!", })
-          resetForm()
-          setEditingSupplier(null)
-          setApprovalReason("")
-          setShowSuccessAlert(true)
-          setAlertMessage("Supplier updated successfully!")
-        } else {
-          updateProgress("Submitting for approval...", 2, 3)
-          const companyName = formData.company === "custom" ? formData.customCompany : formData.company
-          const { customCompany, ...supplierData } = formData
-          submitChange({ 
-            type: "supplier", 
-            action: "update", 
-            entityId: editingSupplier.id, 
-            originalData: { 
-              name: editingSupplier.name, 
-              email: editingSupplier.email, 
-              phone: editingSupplier.phone, 
-              company: editingSupplier.company, 
-              address: editingSupplier.address, 
-              status: editingSupplier.status, 
-            }, 
-            proposedData: { ...supplierData, company: companyName }, 
-            requestedBy: user?.email || "", 
-            reason: approvalReason, 
-          })
-          toast({ title: "Submitted", description: "Supplier changes submitted for admin approval." })
-          resetForm()
-          setEditingSupplier(null)
-          setApprovalReason("")
-        }
-      } else if (user?.role !== "admin" && !approvalReason.trim()) {
-        toast({ title: "Error", description: "Please provide a reason for the changes.", variant: "destructive" })
+      if (editingSupplier) {
+        const companyName = formData.company === "custom" ? formData.customCompany : formData.company
+        const { customCompany, ...supplierData } = formData
+        await updateSupplier(editingSupplier.id, { ...supplierData, company: companyName })
+        
+        updateProgress("Operation completed!", 3, 3)
+        toast({ title: "Success", description: "Supplier updated successfully!", })
+        resetForm()
+        setEditingSupplier(null)
+        setApprovalReason("")
+        setShowSuccessAlert(true)
+        setAlertMessage("Supplier updated successfully!")
+      } else {
+        toast({ title: "Error", description: "No supplier selected for editing.", variant: "destructive" })
       }
     } catch (err) {
       toast({ title: "Error", description: "Failed to update supplier.", variant: "destructive" })
@@ -277,39 +238,13 @@ export default function SuppliersPage() {
     try {
       toast({ title: "Processing...", description: "Validating deletion...", duration: 2000 })
       updateProgress("Validating deletion...", 1, 3)
-      if (deletingSupplier && (user?.role === "admin" || deleteReason.trim())) {
-        if (user?.role === "admin") {
-          updateProgress("Removing supplier from database...", 2, 3)
-          await deleteSupplier(deletingSupplier.id)
-          updateProgress("Operation completed!", 3, 3)
-          toast({ title: "Success", description: "Supplier deleted successfully!", })
-          setDeletingSupplier(null)
-          setShowSuccessAlert(true)
-          setAlertMessage("Supplier deleted successfully!")
-        } else {
-          updateProgress("Submitting for approval...", 2, 3)
-          submitChange({ 
-            type: "supplier", 
-            action: "delete", 
-            entityId: deletingSupplier.id, 
-            originalData: { 
-              name: deletingSupplier.name, 
-              email: deletingSupplier.email, 
-              phone: deletingSupplier.phone, 
-              company: deletingSupplier.company, 
-              address: deletingSupplier.address, 
-              status: deletingSupplier.status, 
-            }, 
-            proposedData: {}, 
-            requestedBy: user?.email || "", 
-            reason: deleteReason, 
-          })
-          toast({ title: "Submitted", description: "Supplier deletion submitted for admin approval." })
-          setDeletingSupplier(null)
-          setDeleteReason("")
-        }
-      } else if (user?.role !== "admin" && !deleteReason.trim()) {
-        toast({ title: "Error", description: "Please provide a reason for deleting this supplier.", variant: "destructive" })
+      if (deletingSupplier) {
+        await deleteSupplier(deletingSupplier.id)
+        updateProgress("Operation completed!", 3, 3)
+        toast({ title: "Success", description: "Supplier deleted successfully!", })
+        setDeletingSupplier(null)
+        setShowSuccessAlert(true)
+        setAlertMessage("Supplier deleted successfully!")
       }
     } catch (err) {
       toast({ title: "Error", description: "Failed to delete supplier.", variant: "destructive" })
@@ -379,14 +314,13 @@ export default function SuppliersPage() {
                 <DialogTitle>Add New Supplier</DialogTitle>
                 <DialogDescription>
                   Enter supplier information to add to your database
-                  {user?.role !== "admin" && (
-                    <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                      <div className="flex items-center text-amber-800 dark:text-amber-200">
-                        <Clock className="h-4 w-4 mr-2" />
-                        <span className="text-sm font-medium">Changes require admin approval</span>
-                      </div>
+                  {/* Removed user role check */}
+                  <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <div className="flex items-center text-amber-800 dark:text-amber-200">
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span className="text-sm font-medium">Changes require admin approval</span>
                     </div>
-                  )}
+                  </div>
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -395,7 +329,7 @@ export default function SuppliersPage() {
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, name: e.target.value })}
                     required
                   />
                 </div>
@@ -405,7 +339,7 @@ export default function SuppliersPage() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, email: e.target.value })}
                     required
                   />
                 </div>
@@ -414,7 +348,7 @@ export default function SuppliersPage() {
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, phone: e.target.value })}
                     required
                   />
                 </div>
@@ -423,7 +357,7 @@ export default function SuppliersPage() {
                   <div className="space-y-2">
                     <Select
                       value={formData.company}
-                      onValueChange={(value) => setFormData({ ...formData, company: value })}
+                      onValueChange={(value) => updateForm({ ...formData, company: value })}
                       required
                     >
                       <SelectTrigger>
@@ -442,7 +376,7 @@ export default function SuppliersPage() {
                       <Input
                         placeholder="Enter custom company type"
                         value={formData.customCompany || ""}
-                        onChange={(e) => setFormData({ ...formData, customCompany: e.target.value })}
+                        onChange={(e) => updateForm({ ...formData, customCompany: e.target.value })}
                         className="mt-2"
                         required
                       />
@@ -454,13 +388,13 @@ export default function SuppliersPage() {
                   <Input
                     id="address"
                     value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, address: e.target.value })}
                     placeholder="Enter full address"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <Select value={formData.status} onValueChange={(value) => updateForm({ ...formData, status: value })}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -473,11 +407,12 @@ export default function SuppliersPage() {
                   </Select>
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="neutralOutline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button type="button" variant="neutralOutline" onClick={clearForm}>
                     Cancel
                   </Button>
                   <Button type="submit">
-                    {user?.role === "admin" ? "Add Supplier" : "Submit for Approval"}
+                    {/* Removed user role check */}
+                    Add Supplier
                   </Button>
                 </div>
               </form>
@@ -813,14 +748,13 @@ export default function SuppliersPage() {
             <DialogTitle>Edit Supplier</DialogTitle>
             <DialogDescription>
               Update supplier information
-              {user?.role !== "admin" && (
-                <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                  <div className="flex items-center text-amber-800 dark:text-amber-200">
-                    <Clock className="h-4 w-4 mr-2" />
-                    <span className="text-sm font-medium">Changes require admin approval</span>
-                  </div>
+              {/* Removed user role check */}
+              <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <div className="flex items-center text-amber-800 dark:text-amber-200">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <span className="text-sm font-medium">Changes require admin approval</span>
                 </div>
-              )}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditSubmit} className="space-y-4">
@@ -829,7 +763,7 @@ export default function SuppliersPage() {
               <Input
                 id="edit-name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => updateForm({ ...formData, name: e.target.value })}
                 required
               />
             </div>
@@ -839,7 +773,7 @@ export default function SuppliersPage() {
                 id="edit-email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => updateForm({ ...formData, email: e.target.value })}
                 required
               />
             </div>
@@ -848,7 +782,7 @@ export default function SuppliersPage() {
               <Input
                 id="edit-phone"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => updateForm({ ...formData, phone: e.target.value })}
                 required
               />
             </div>
@@ -857,7 +791,7 @@ export default function SuppliersPage() {
               <div className="space-y-2">
                 <Select
                   value={formData.company}
-                  onValueChange={(value) => setFormData({ ...formData, company: value })}
+                  onValueChange={(value) => updateForm({ ...formData, company: value })}
                   required
                 >
                   <SelectTrigger>
@@ -876,7 +810,7 @@ export default function SuppliersPage() {
                   <Input
                     placeholder="Enter custom company type"
                     value={formData.customCompany || ""}
-                    onChange={(e) => setFormData({ ...formData, customCompany: e.target.value })}
+                    onChange={(e) => updateForm({ ...formData, customCompany: e.target.value })}
                     className="mt-2"
                     required
                   />
@@ -888,12 +822,12 @@ export default function SuppliersPage() {
               <Input
                 id="edit-address"
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                onChange={(e) => updateForm({ ...formData, address: e.target.value })}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+              <Select value={formData.status} onValueChange={(value) => updateForm({ ...formData, status: value })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -905,28 +839,28 @@ export default function SuppliersPage() {
                 </SelectContent>
               </Select>
             </div>
-            {user?.role !== "admin" && (
-              <div className="space-y-2">
-                <Label htmlFor="edit-reason">Reason for Changes *</Label>
-                <Textarea
-                  id="edit-reason"
-                  value={approvalReason}
-                  onChange={(e) => setApprovalReason(e.target.value)}
-                  placeholder="Explain why you're making these changes..."
-                  rows={3}
-                  required
-                />
-              </div>
-            )}
+            {/* Removed user role check */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-reason">Reason for Changes *</Label>
+              <Textarea
+                id="edit-reason"
+                value={approvalReason}
+                onChange={(e) => setApprovalReason(e.target.value)}
+                placeholder="Explain why you're making these changes..."
+                rows={3}
+                required
+              />
+            </div>
             <div className="flex justify-end space-x-2">
               <Button type="button" variant="neutralOutline" onClick={() => {
+                clearForm()
                 setIsEditDialogOpen(false)
-                setApprovalReason("")
               }}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={user?.role !== "admin" && !approvalReason.trim()}>
-                {user?.role === "admin" ? "Update Supplier" : "Submit for Approval"}
+              <Button type="submit" disabled={!approvalReason.trim()}>
+                {/* Removed user role check */}
+                Update Supplier
               </Button>
             </div>
           </form>
@@ -945,29 +879,27 @@ export default function SuppliersPage() {
             <DialogTitle className="text-xl font-semibold">Delete Supplier</DialogTitle>
             <DialogDescription className="text-center text-gray-600 dark:text-gray-300 mb-4">
               Are you sure you want to delete <span className="font-semibold text-gray-900 dark:text-gray-100">{deletingSupplier?.name}</span>? This action cannot be undone.
-              {user?.role !== "admin" && (
-                <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                  <div className="flex items-center text-amber-800 dark:text-amber-200">
-                    <Clock className="h-4 w-4 mr-2" />
-                    <span className="text-sm font-medium">This will be submitted for admin approval</span>
-                  </div>
+              {/* Removed user role check */}
+              <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <div className="flex items-center text-amber-800 dark:text-amber-200">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <span className="text-sm font-medium">This will be submitted for admin approval</span>
                 </div>
-              )}
+              </div>
             </DialogDescription>
             
-            {user?.role !== "admin" && (
-              <div className="space-y-2 mb-4">
-                <Label htmlFor="delete-reason">Reason for Deletion *</Label>
-                <Textarea
-                  id="delete-reason"
-                  value={deleteReason}
-                  onChange={(e) => setDeleteReason(e.target.value)}
-                  placeholder="Explain why you want to delete this supplier..."
-                  rows={3}
-                  required
-                />
-              </div>
-            )}
+            {/* Removed user role check */}
+            <div className="space-y-2 mb-4">
+              <Label htmlFor="delete-reason">Reason for Deletion *</Label>
+              <Textarea
+                id="delete-reason"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Explain why you want to delete this supplier..."
+                rows={3}
+                required
+              />
+            </div>
             
             <div className="flex justify-center space-x-3 pt-4">
               <Button 
@@ -987,9 +919,10 @@ export default function SuppliersPage() {
                 variant="destructive" 
                 onClick={handleDeleteConfirm}
                 className="px-6"
-                disabled={user?.role !== "admin" && !deleteReason.trim()}
+                disabled={!deleteReason.trim()}
               >
-                {user?.role === "admin" ? "Delete Supplier" : "Submit for Approval"}
+                {/* Removed user role check */}
+                Delete Supplier
               </Button>
             </div>
           </div>
